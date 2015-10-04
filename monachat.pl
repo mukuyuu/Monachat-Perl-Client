@@ -363,7 +363,7 @@ sub commands
 	     elsif( $ignore{antiignoreon} == 1 ) { $ignore{antiignoreon} = 0; }
 	     }
 	}
-}
+    }
 
 sub login
     {
@@ -401,25 +401,25 @@ sub login
 	    if( $proxy{retry} == 1 )
 	      { shift @proxyaddr; shift @proxyport; }
 	    }
-	   }
-	else
-	   {
-	   $remote = IO::Socket::INET->new( PeerAddr => $socketdata{address}||"153.122.46.192",
-	                                    PeerPort => $socketdata{port}||"9095",
-	                                    Proto => "tcp" )
-	                                    or die "Couldn't connect: $!";
-	   }
-	$select = IO::Select->new( $remote );
-	if( $select->can_write() )
-	  { print $remote "MojaChat\0"; }
-	enterroom();
-	if( $option eq "relogin" )
-	  {
-	  $endloop = 0;
-	  $readsocketthread = threads->create(\&readsocket);
-	  $pingthread       = threads->create(\&ping, "20");
 	  }
-	}
+       else
+	  {
+	  $remote = IO::Socket::INET->new( PeerAddr => $socketdata{address}||"153.122.46.192",
+	                                   PeerPort => $socketdata{port}||"9095",
+	                                   Proto => "tcp" )
+	                                   or die "Couldn't connect: $!";
+	  }
+       $select = IO::Select->new( $remote );
+       if( $select->can_write() )
+	 { print $remote "MojaChat\0"; }
+       enterroom();
+       if( $option eq "relogin" )
+	 {
+	 $endloop = 0;
+	 $readsocketthread = threads->create(\&readsocket);
+	 $pingthread       = threads->create(\&ping, "20");
+	 }
+    }
 
 sub enterroom
     {
@@ -463,7 +463,7 @@ sub getreliables
 	   $counter++;
 	   }
 	 }
-	close(PROXIES);
+    close(PROXIES);
     }
 
 sub ping
@@ -690,36 +690,36 @@ sub printread
 	        $usersdata{$x} = $1;
 	        $outputfield->Append( "$usersdata{$name} moved to x $usersdata{$x}\n" );
 	        }
-	   if( $usersdata{$y} != $4 )
-	     {
-	     $usersdata{$y} = $4;
-	     $outputfield->Append( "$usersdata{$name} moved to y $usersdata{$y}\n" );
-	     }
-	   if( $usersdata{$scl} != $2 )
-	     {
-	     $usersdata{$scl} = $2;
-	     if   ( $usersdata{$scl} ==  "100" ) { $scl = "right"; }
-	     elsif( $usersdata{$scl} == "-100" ) { $scl =  "left"; }
-	     $outputfield->Append( "$usersdata{$name} moved to $scl\n" );
-	     }
-	   if( $stalk{on} == 1 and $stalk{nomove} == 0 and $stalk{id} == $3 )
-	     {
-	     $logindata{xposition} = $1;
-	     $logindata{yposition} = $4;
-	     $logindata{scl}       = $2;
-	     if( $select->can_write() )
-	       { print $remote "<SET x=\"$logindata{xposition}\" scl=\"$logindata{scl}\" y=\"$logindata{yposition}\" />\0"; }
-	     }
-	   if( $stalk{antistalkon} == 1 and $stalk{antistalkid} == $3 )
-             {
-	     if( $logindata{xposition} - $1 < 40 and $logindata{xposition} - $1 > -40 )
-	       { $logindata{xposition} = 680-$1+40; }
-	     if( $logindata{yposition} - $4 < 40 and $logindata{yposition} - $4 > -40 )
-	       { $logindata{yposition} = 320-$4+240; }
-	     if( $select->can_write() )
-	       { print $remote "<SET x=\"$logindata{xposition}\" scl=\"$logindata{scl}\" y=\"$logindata{yposition}\" />\0"; }
-	     }
-	 }
+	      if( $usersdata{$y} != $4 )
+	        {
+	        $usersdata{$y} = $4;
+	        $outputfield->Append( "$usersdata{$name} moved to y $usersdata{$y}\n" );
+	        }
+	      if( $usersdata{$scl} != $2 )
+	        {
+	        $usersdata{$scl} = $2;
+	        if   ( $usersdata{$scl} ==  "100" ) { $scl = "right"; }
+	        elsif( $usersdata{$scl} == "-100" ) { $scl =  "left"; }
+	        $outputfield->Append( "$usersdata{$name} moved to $scl\n" );
+	        }
+	      if( $stalk{on} == 1 and $stalk{nomove} == 0 and $stalk{id} == $3 )
+	        {
+	        $logindata{xposition} = $1;
+	        $logindata{yposition} = $4;
+	        $logindata{scl}       = $2;
+	        if( $select->can_write() )
+	          { print $remote "<SET x=\"$logindata{xposition}\" scl=\"$logindata{scl}\" y=\"$logindata{yposition}\" />\0"; }
+	        }
+	      if( $stalk{antistalkon} == 1 and $stalk{antistalkid} == $3 )
+                {
+	        if( $logindata{xposition} - $1 < 40 and $logindata{xposition} - $1 > -40 )
+	          { $logindata{xposition} = 680-$1+40; }
+	        if( $logindata{yposition} - $4 < 40 and $logindata{yposition} - $4 > -40 )
+	          { $logindata{yposition} = 320-$4+240; }
+	        if( $select->can_write() )
+	          { print $remote "<SET x=\"$logindata{xposition}\" scl=\"$logindata{scl}\" y=\"$logindata{yposition}\" />\0"; }
+	        }
+	      }
 	 elsif( @read[0] =~ /<IG (ihash=".{10}") (id=".+?") \/>|<IG (ihash=".{10}") (stat=".+?") (id=".+?") \/>/ )
 	      {
 	      my($name, $id, $stat, $trip, $ihash, $ignore, $ignoredname, $ignoredihash, $antiignoreid);
@@ -874,16 +874,16 @@ sub printread
 	 else { $outputfield->Append( "@read[0]\n" ); }
 	 shift @read;
 	 }
-	}
+    }
 
 $window      = Win32::GUI::Window->new( -name => "Window", -title => "Monachat", -height => 320, -width => 620 );
-#$tab = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
-#$tab1 = $tab->InsertItem( -text => 1 );
+#$tab        = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
+#$tab1       = $tab->InsertItem( -text => 1 );
 $inputfield  = $window->AddTextfield  ( -name => "Inputfield", -height => 30, -width => 420, -left => 100,
                                         -top => 240 );
 $outputfield = $window->AddTextfield  ( -height => 180, -width => 520, -left => 50, -top => 40, -multiline => 1,
                                         -vscroll => 1, -autovscroll => 1 );
-#$tab = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
+#$tab  = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
 #$tab1 = $tab->InsertItem( -text => 1 );
 #$tab2 = $tab->InsertItem( -text => 2 );
 #$tab3 = $tab->InsertItem( -text => 3 );
