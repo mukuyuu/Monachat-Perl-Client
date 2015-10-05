@@ -1,8 +1,8 @@
 use IO::Socket;
 use Socket;
 use threads;
-use threads::shared qw/share/;
-use Encode qw/encode decode/;
+use threads::shared /share/;
+use Encode /encode decode/;
 use Win32::GUI;
 use Win32::GUI::Constants;
 use IO::Select;
