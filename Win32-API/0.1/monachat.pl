@@ -9,6 +9,7 @@ use IO::Select;
 use IO::Socket::Socks;
 use LWP::UserAgent;
 use Userdata;
+use Search;
 
 sub Window_Terminate { return -1; }
 sub SearchWindow_Terminate
