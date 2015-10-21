@@ -1,24 +1,24 @@
 package Userdata;
-use Encode /encode decode/;
+use Encode qw(encode decode);
 use threads;
-use threads::shared /shared_clone/;
+use threads::shared qw(shared_clone);
 
 sub new_login_data
     {
     $class = shift;
-    ($name, $character, $status, $r, $g, $b, $xposition, $yposition, $scl, $attrib) = @_;
+    ($name, $character, $status, $r, $g, $b, $xposition, $yposition, $scl, $room1, $room2, $attrib) = @_;
     my($self) :shared = shared_clone({ name      => $name||undef,
-                     character => $character||undef,
-                     status    => $status||undef,
-                     r         => $r||undef,
-                     g         => $g||undef,
-                     b         => $b||undef,
-                     xposition => $xposition||undef,
-                     yposition => $yposition||undef,
-                     scl       => $scl||undef,
-                     room1     => $room1||undef,
-                     room2     => $room2||undef,
-                     attrib    => $attrib||undef });
+                                       character => $character||undef,
+                                       status    => $status||undef,
+                                       r         => $r||undef,
+                                       g         => $g||undef,
+                                       b         => $b||undef,
+                                       xposition => $xposition||undef,
+                                       yposition => $yposition||undef,
+                                       scl       => $scl||undef,
+                                       room1     => $room1||undef,
+                                       room2     => $room2||undef,
+                                       attrib    => $attrib||undef });
     return bless($self, $class);
     }
 
@@ -122,13 +122,13 @@ sub get_ihash
 sub set_room
     {
     ($self, $room) = @_;
-    $self->{room} = $room;
+    $self->{room1} = $room;
     }
 
 sub get_room
     {
     $self = shift;
-    return $self->{room};
+    return $self->{room1};
     }
 
 sub set_room2
@@ -248,5 +248,33 @@ sub get_attrib
     if( $id ) { return $self->{$idattrib}; }
     else      { return $self->{attrib}; }
     }
+
+sub set_stalk
+    {
+	($self, $on, $id) = @_;
+	$stalkihash = "stalk" . $self->get_ihash($id);
+	$self->{$stalkihash} = $on;
+	}
+
+sub get_stalk
+    {
+	($self, $id) = @_;
+	$stalkihash = "stalk" . $self->get_ihash($id);
+	return $self->{$stalkihash};
+	}
+
+sub set_antistalk
+    {
+	($self, $on, $id) = @_;
+	$antistalkihash = "antistalk" . $self->get_ihash($id);
+	$self->{$antistalkihash} = $on;
+	}
+
+sub get_antistalk
+    {
+	($self, $id) = @_;
+	$antistalkihash = "antistalk" . $self->get_ihash($id);
+	return $self->{$antistalkihash};
+	}
 
 1;
