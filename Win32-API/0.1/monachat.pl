@@ -1,7 +1,7 @@
 use IO::Socket;
 use Socket;
 use threads;
-use threads::shared;
+use threads::shared qw(share);
 use Encode /encode decode/;
 use Win32::GUI;
 use Win32::GUI::Constants;
@@ -9,7 +9,6 @@ use IO::Select;
 use IO::Socket::Socks;
 use LWP::UserAgent;
 use Userdata;
-use Search;
 
 sub Window_Terminate { return -1; }
 sub SearchWindow_Terminate
@@ -26,24 +25,20 @@ sub Inputfield_KeyDown
     if( $key == 13 )
       {
       my($readtext) = $inputfield->Text();
-      if ( $readtext =~ /^\// )
-	     { command_list($readtext); }
-      else
-	     {
-	     if( $encrypt{on} == 1 )
+	  if( $readtext )
+	    {
+        if ( $readtext =~ /^\// )
+	       { command_list($readtext); }
+        else
 	       {
-	       if( $encrypt{reverse} == 1 )
-	         { $readtext = reverse($readtext); }
+	       $readtext = decode("cp932", $readtext) or die "Couldn't decode: $!\n";
+	       $readtext = encode("utf8",  $readtext) or die "Couldn't encode: $!\n";
+	       if( $select->can_write() )
+	         { print $remote "<COM cmt=\"$readtext\" />\0"; }
 	       }
-	     #$outputfield->Append("$readtext\n");
-	     #$readtext = decode("cp932", $readtext) or die "Couldn't decode: $!\n";
-	     #$readtext = encode("utf8",  $readtext) or die "Couldn't encode: $!\n";
-	     #$outputfield->Append("<COM cmt=\"$readtext\" />\n");
-	     if( $select->can_write() )
-	       { print $remote "<COM cmt=\"$readtext\" />\0"; }
-	     }
-      $inputfield->SelectAll();
-      $inputfield->ReplaceSel("");
+        $inputfield->SelectAll();
+        $inputfield->ReplaceSel("");
+		}
       }
    }
 
@@ -85,12 +80,7 @@ sub command_list
 	     enter_room("reenter");
 	     }
     elsif( $command =~ /\/stat (.+)/ )
-	     {
-	     my($status) = $1;
-	     my($id) = $logindata->get_id();
-	     $userdata->set_status($status, $id);
-	     print $remote "<SET stat=\"", $userdata->get_status($id), "\" />\0";
-	     }
+	     { print $remote "<SET stat=\"$1\" />\0"; }
     elsif( $command =~ /\/room (.+)/ )
 	     {
 	     my($room) = $1;
@@ -106,25 +96,15 @@ sub command_list
 	     enter_room("enterroom");
 	     }
     elsif( $command =~ /\/x (.+)/ )
-	     {
-	     my($x) = $1;
-         my($id) = $logindata->get_id();
-         $userdata->set_x($x, $id);
-         send_x_y_scl();
-	     }
+	     { send_x_y_scl("x$1"); }
     elsif( $command =~ /\/y (.+)/ )
+	     { send_x_y_scl("y$1"); }
+    elsif( $command =~ /\/move (x\d+)|move (y\d+)|move (x\d+) (y\d+)|move (y\d+) (x\d+)/ )
 	     {
-	     my($y) = $1;
-         my($id) = $logindata->get_id();
-         $userdata->set_y($y, $id);
-         send_x_y_scl();
-	     }
-    elsif( $command =~ /\/move (x.+)|move (y.+)|move (x.+) (y.+)|move (y.+) (x.+)/ )
-	     {
-         my($x, $y);
-	     if( $1 =~ /x(.+)/ or $2 =~ /x(.+)/ ) { $x = $1; $userdata->set_x($x, $id); }
-	     if( $1 =~ /y(.+)/ or $2 =~ /y(.+)/ ) { $y = $1; $userdata->set_y($y, $id); }
-         send_x_y_scl();
+         my($x, $y, $line);
+	     if( $1 =~ /x(.+)/ or $2 =~ /x(.+)/ ) { $line .= "x$1"; }
+	     if( $1 =~ /y(.+)/ or $2 =~ /y(.+)/ ) { $line .= "y$1"; }
+         send_x_y_scl($line);
 	     }
     elsif( $command =~ /\/scl/ )
 	     {
@@ -132,8 +112,7 @@ sub command_list
          my($scl) = $userdata->get_scl($id);
          if   ( $scl ==  100 ) { $scl = -100; }
          elsif( $scl == -100 ) { $scl =  100; }
-	     $userdata->set_scl($scl, $id);
-         send_x_y_scl();
+         send_x_y_scl("scl$scl");
 	     }
     elsif( $command =~ /\/attrib/ )
 	     {
@@ -142,9 +121,10 @@ sub command_list
 	     }
     elsif( $command =~ /\/ignore (\d{1,3})/ )
 	     {
-	     my($ihash) = "ihash$1";
+		 my($id) = $1;
+	     my($ihash) = $userdata->get_ihash($id);
 	     if( $select->can_write() )
-	       { print $remote "<IG ihash=\"$userdata{$ihash}\" />\0"; }
+	       { print $remote "<IG ihash=\"$ihash\" />\0"; }
 	     }
     elsif( $command =~ /\/search\s*(.*)/ )
 	     {
@@ -159,94 +139,97 @@ sub command_list
 	     }
     elsif( $command =~ /\/stalk (.+)/ )
 	     {
-	     if   ( $stalk{on} == 0 ) { $stalk{on} = 1; printoutput("stalk on\n"); }
-	     elsif( $stalk{on} == 1 ) { $stalk{on} = 0; printoutput("stalk off\n"); }
-	     if   ( $1 =~ /(\d{1,3})/ )
+	     if   ( $1 =~ /on/  ) { $option{stalk} = 1; printoutput("Stalk on\n"); }
+	     elsif( $1 =~ /off/ ) { $option{stalk} = 0; printoutput("Stalk off\n"); }
+	     elsif( $1 =~ /(\d{1,3})/ )
 	          {
-	          my($ihash) = "ihash$1";
-	          $stalk{id}    = $1;
-	          $stalk{ihash} = $usersdata{$ihash};
+			  if( $option{stalk} == 0 ) { $option{stalk} = 1; }
+			  my($id) = $1;
+	          $userdata->set_stalk($id);
 	          if   ( $1 =~ /nomove/ )
-	               { $stalk{nomove} = 1; }
+	               { $option{nomove} = 1; }
 	          else {
-	               $stalk{nomove} = 0;
-	               my($x, $y, $scl) = ("x$1", "y$1", "scl$1");
-	               $logindata{xposition} = $userdata{$x};
-	               $logindata{yposition} = $userdata{$y};
-	               $logindata{scl}       = $userdata{$scl};
+	               $option{nomove} = 0;
+	               $userdata->set_x($userdata->get_x($id));
+	               $userdata->set_y($userdata->get_y($id));
+	               $userdata->set_scl($userdata->get_scl($id));
                    send_x_y_scl();
 	               }
 	         }
 	     }
     elsif( $command =~ /\/antistalk (.+)/ )
 	     {
-	     my($ihash) = "ihash$1";
-	     if   ( $stalk{antistalkon} == 0 ) { $stalk{antistalkon} = 1; }
-	     elsif( $stalk{antistalkon} == 1 ) { $stalk{antistalkon} = 0; }
-	     if( $1 =~ /(\d{1,3})/ )
-	       {
-	       $stalk{antistalkid} = $1;
-	       $stalk{antistalkihash} = $usersdata{$ihash};
-	       }
+		 if   ( $1 =~ /on/  ) { $option{antistalk} = 1; }
+		 elsif( $1 =~ /off/ ) { $option{antistalk} = 0; }
+	     elsif( $1 =~ /(\d{1,3})/ )
+	          {
+		      if( $option{antistalk} == 0 ) { $option{antistalk} = 1; }
+		      my($id) = $1;
+		      $userdata->set_antistalk($id);
+	          }
 	     }
     elsif( $command =~ /\/copy (.+)/ )
 	     {
-         my($id) = $1;
-         my($loginid) = $logindata->get_id();
-	     $userdata->set_name($userdata->get_name($id));
-	     $userdata->set_status($userdata->get_status($id));
-	     $userdata->set_character($userdata->get_character($id));
-	     $userdata->set_r($userdata->get_r($id));
-	     $userdata->set_g($userdata->get_g($id));
-	     $userdata->set_b($userdata->get_b($id));
-	     $userdata->set_x($userdata->get_x($id));
-	     $userdata->set_y($userdata->get_y($id));
-	     $userdata->set_scl($userdata->get_scl($id));
+         my($copyid) = $1;
+         my($id) = $logindata->get_id();
+	     $userdata->set_name($userdata->get_name($copyid), $id);
+	     $userdata->set_status($userdata->get_status($copyid), $id);
+	     $userdata->set_character($userdata->get_character($copyid), $id);
+	     $userdata->set_r($userdata->get_r($copyid), $id);
+	     $userdata->set_g($userdata->get_g($copyid), $id);
+	     $userdata->set_b($userdata->get_b($copyid), $id);
+	     $userdata->set_x($userdata->get_x($copyid), $id);
+	     $userdata->set_y($userdata->get_y($copyid), $id);
+	     $userdata->set_scl($userdata->get_scl($copyid), $id);
 	     enter_room("reenter");
 	     }
     elsif( $command =~ /\/default/ )
 	     {
-	     $userdata->set_name($logindata->get_name());
-	     $userdata->set_status($logindata->get_status());
-		 $userdata->set_character($logindata->get_character());
-		 $userdata->set_trip($logindata->get_trip()||"");
-		 $userdata->set_r($logindata->get_r());
-		 $userdata->set_g($logindata->get_g());
-		 $userdata->set_b($logindata->get_b());
-		 $userdata->set_x($logindata->get_x());
-		 $userdata->set_y($logindata->get_y());
-		 $userdata->set_scl($logindata->get_scl());
-		 $stalk{on}            = 0;
-		 $stalk{nomove}        = 0;
-		 $encrypt{on}          = 0;
-		 $encrypt{reverse}     = 0;
+		 my($id) = $logindata->get_id();
+	     $userdata->set_name($logindata->get_name(), $id);
+	     $userdata->set_status($logindata->get_status(), $id);
+		 $userdata->set_character($logindata->get_character(), $id);
+		 $userdata->set_trip($logindata->get_trip()||"", $id);
+		 $userdata->set_r($logindata->get_r(), $id);
+		 $userdata->set_g($logindata->get_g(), $id);
+		 $userdata->set_b($logindata->get_b(), $id);
+		 $userdata->set_x($logindata->get_x(), $id);
+		 $userdata->set_y($logindata->get_y(), $id);
+		 $userdata->set_scl($logindata->get_scl(), $id);
+		 $option{stalk}  = 0;
+		 $option{nomove} = 0;
 		 enter_room("reenter");
 		 }
-    elsif( $command =~ /\/encrypt\s*(.*)/ )
+	elsif( $command =~ /\/invisible/ )
 		 {
-		 if   ( $encrypt{on} == 0 ) { $encrypt{on} = 1; }
-		 elsif( $encrypt{on} == 1 ) { $encrypt{on} = 0; }
-		 if( $1 =~ /reverse/ )
-		   { $encrypt{reverse} = 1; }
+         my($id) = $logindata->get_id();
+		 $userdata->set_name(undef, $id);
+		 $userdata->set_status(undef, $id);
+		 $userdata->set_character(undef, $id);
+		 $userdata->set_trip(undef, $id);
+		 $userdata->set_r(undef, $id);
+		 $userdata->set_g(undef, $id);
+		 $userdata->set_b(undef, $id);
+		 $userdata->set_x(undef, $id);
+		 $userdata->set_y(undef, $id);
+         $userdata->set_scl(undef, $id);
+		 enter_room("reenter");
 		 }
     elsif( $command =~ /\/proxy\s*(.*)/ )
 		 {
-		 if   ( !$1 or $1 =~ /(on|off)/ )
+	     if   ( $1 =~ /on/ )
 	          {
-	          if   ( $proxy{on} == 0  and $1 !~ /off/ )
-	               {
-	               $proxy{on} = 1;
-	               print_output("proxy on\n");
-                   }
-	          elsif( $proxy{on} == 1 and $1 !~ /on/ )
-	               {
-	               $proxy{on} = 0;
-	               print_output("proxy off\n");
-                   }
-	          login("relogin");
-	          }
+	          $proxy{on} = 1;
+	          print_output("Proxy on\n");
+              }
+	     elsif( $1 =~ /off/ )
+	          {
+	          $proxy{on} = 0;
+	          print_output("Proxy off\n");
+              }
 	     elsif( $1 =~ /timeout\s*(\d\.*\d*)/ )
 	          { $proxy{timeout} = $1; }
+		 login("relogin");
 	     }
     elsif( $command =~ /\/clear (.+)/ )
 		 {
@@ -259,7 +242,7 @@ sub command_list
 	          {
 	          my($keys);
               undef $userdata;
-              $userdata = Userdata->new();
+              $userdata = Userdata->new_user_data();
 	          }
 		 }
     elsif( $command =~ /\/newinstance\s*(.*)/ )
@@ -274,37 +257,24 @@ sub command_list
 	           sleep($second);
 	           }
 	        }
-	      else { system("perl monachat.pl -proxy -timeout 1"); }
-	      }
-    elsif( $command =~ /\/invisible/ )
-		 {
-         my($id) = $logindata->get_id();
-		 $userdata->set_name(undef, $id);
-		 $userdata->set_character(undef, $id);
-		 $userdata->set_status(undef, $id);
-		 $userdata->set_trip(undef, $id);
-		 $userdata->set_x(undef, $id);
-		 $userdata->set_y(undef, $id);
-         $userdata->set_scl(undef, $id);
-		 enter_room("reenter");
-		 }
+	     else { system("start perl monachat.pl -proxy -timeout 1"); }
+	     }
     elsif( $command =~ /\/antiignore\s*(\d*)/ )
 	     {
-	     my($antiignoreid) = "$1antiignore";
-	     $ignore{antiignoreon} = 1;
-		 if   ( $1 =~ /(\d{1,3})/ )
-	          {
-	          if   ( $ignore{$antiignoreid} == 0 ) { $ignore{$antiignoreid} = 1; }
-	          elsif( $ignore{$antiignoreid} == 1 ) { $ignore{$antiignoreid} = 0; }
+		 if   ( $1 =~ /on/  ) { $option{antiignoreon} = 1; }
+		 elsif( $1 =~ /off/ ) { $option{antiignoreon} = 0; }
+		 elsif( $1 =~ /(\d{1,3})/ )
+		      {
+		      my($id) = $1;
+		      $userdata->set_antiignore($id);
+	          $option{antiignoreon} = 1;
+	          if   ( $userdata->get_antiignore($id) == 0 ) { $userdata->set_antiignore(1, $id); }
+	          elsif( $userdata->get_antiignore($id) == 1 ) { $userdata->set_antiignore(0, $id); }
 	          }
 	     elsif( $1 =~ /all/ )
 	          {
-	          if   ( $ignore{antiignoreall} == 0 ) { $ignore{antiignoreall} = 1; }
-	          elsif( $ignore{antiignoreall} == 1 ) { $ignore{antiignoreall} = 0; }
-	          }
-	     else {
-	          if   ( $ignore{antiignoreon} == 0 ) { $ignore{antiignoreon} = 1; }
-	          elsif( $ignore{antiignoreon} == 1 ) { $ignore{antiignoreon} = 0; }
+	          if   ( $option{antiignoreall} == 0 ) { $option{antiignoreall} = 1; }
+	          elsif( $option{antiignoreall} == 1 ) { $option{antiignoreall} = 0; }
 	          }
 	     }
     }
@@ -335,11 +305,11 @@ sub login
             {
             if( !@proxyaddr[0] ) { get_proxy_list(); }
             $remote = IO::Socket::Socks->new( ProxyAddr   => @proxyaddr[0],
-	                                      ProxyPort   => @proxyport[0],
-	                                      ConnectAddr => $socketdata{address}||"153.122.46.192",
-	                                      ConnectPort => $socketdata{port}||"9095",
-	                                      SocksDebug  => $proxy{debug}||1,
-	                                      Timeout     => $proxy{timeout}||2 )
+	                                          ProxyPort   => @proxyport[0],
+	                                          ConnectAddr => $socketdata{address}||"153.122.46.192",
+	                                          ConnectPort => $socketdata{port}||"9095",
+	                                          SocksDebug  => $proxy{debug}||1,
+	                                          Timeout     => $proxy{timeout}||2 )
             or warn "$SOCKS_ERROR\n" && shift @proxyaddr && shift @proxyport && redo;
             if( $proxy{skip} > 0 ) { shift(@proxyaddr); shift(@proxyport); $proxy{skip}--; redo; }
 			last;
@@ -348,9 +318,9 @@ sub login
     else
        {
        $remote = IO::Socket::INET->new( PeerAddr => $socketdata{address}||"153.122.46.192",
-	                                PeerPort => $socketdata{port}||"9095",
-	                                Proto => "tcp" )
-	                                or die "Couldn't connect: $!";
+	                                    PeerPort => $socketdata{port}||"9095",
+	                                    Proto => "tcp" )
+	                                    or die "Couldn't connect: $!";
        }
     $select = IO::Select->new( $remote );
     if( $select->can_write() )
@@ -395,9 +365,17 @@ sub enter_room
 
 sub send_x_y_scl
     {
-    my($id) = $logindata->get_id();
+	my($line) = shift;
+	my($x, $y, $scl);
+	my($id) = $logindata->get_id();
+	if( $line =~ /x(\d+)/   ) { $x = $1; }
+	if( $line =~ /y(\d+)/   ) { $y = $1; }
+	if( $line =~ /scl(-?\d+)/ ) { $scl = $1; }
+	$x   = $x||$userdata->get_x($id);
+	$y   = $y||$userdata->get_y($id);
+	$scl = $scl||$userdata->get_scl($id);
     if( $select->can_write() )
-      { print $remote "<SET x=\"", $userdata->get_x($id), "\" scl=\"", $userdata->get_scl($id), "\" y=\"", $userdata->get_y($id), "\" />\0"; }
+      { print $remote "<SET x=\"$x\" scl=\"$scl\" y=\"$y\" />\0"; }
     }
 
 sub get_proxy_list
@@ -458,8 +436,6 @@ sub read_socket
 sub save_and_print_user_data
     {  
     my($mode, $id, $name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = @_;
-    $trip{$trip}  = $id;
-    $trip{$ihash} = $id;
     $userdata->set_name($name, $id);
     $userdata->set_id($id);
     $userdata->set_character($character, $id);
@@ -472,29 +448,27 @@ sub save_and_print_user_data
     $userdata->set_x($x, $id);
     $userdata->set_y($y, $id);
     $userdata->set_scl($scl, $id);
-    if   ( $stalk{on} == 1 )
+    if   ( $option{stalk} == 1 )
 	     {
-	     if( $stalk{ihash} == $userdata->get_ihash($id) )
-	       { $stalk{id} = $userdata->get_id($id); }
+	     if( $userdata->get_stalk($userdata->get_ihash($id)) )
+	       { $userdata->set_stalk($id); }
 	     }
-    if   ( $stalk{antistalkon} == 1 )
+    if   ( $option{antistalk} == 1 )
 	     {
-	     if( $stalk{antistalkihash} == $userdata->get_ihash($id) )
-	       { $stalk{antistalkid} = $userdata->get_id($id); }
+	     if( $userdata->get_antistalk($userdata->get_ihash($id)) )
+	       { $userdata->set_antistalk($id); }
 	     }
     if   ( $userdata->get_scl($id) ==  "100" ) { $scl = "right"; }
     elsif( $userdata->get_scl($id) == "-100" ) { $scl = "left";  }
     if   ( $userdata->get_trip($id) =~ /trip="(.+?)"/ )
 	     {
-	     $userdata->settrip($1, $id);
+	     $userdata->set_trip($1, $id);
 	     print_output("$name $trip $ihash ($id) $status $character x$x $scl");
          }
-    else {
-	     print_output("$name $ihash ($id) $status $character x$x $scl");
-         }
-    if   ( $mode eq "enter" )
+    else { print_output("$name $ihash ($id) $status $character x$x $scl"); }
+    if   ( $mode eq "ENTER" )
     	 { print_output(" has logged in\n"); }
-    elsif( $mode eq "user" )
+    elsif( $mode eq "USER" )
     	 { print_output("\n"); }
 	}
 
@@ -509,7 +483,6 @@ sub print_read
 	          {
               my($id) = $1;
 	          $logindata->set_id($id);
-              my($id) = $logindata->get_id($id);
 	          print_output("Logged in, id=$id\n\n");
               }
 	     elsif( @read[0] =~ /<ROOM>/ )
@@ -517,28 +490,23 @@ sub print_read
 	     #    { $outputfield->Append( "Users in this room:\n" ); }
 	     elsif( @read[0] =~ /<ROOM \/>/ )
 	          {}
-	     elsif( @read[0] =~ /<\w{4,5} r="(\d{1,3}?)" name="(.*?)" id="(\d{1,3})"(.+?)ihash="(.{10})".+\w{4,6}="(.*?)" g="(\d{1,3}?)" type="(.*?)" b="(\d{1,3}?)" y="(.*?)" x="(.*?)" scl="(.+?)" \/>/ )
-	          {
-	          #my($option) = $1;
-	          #if   ( $option =~ /USER/  )  { $option = "user";  }
-	          #elsif( $option =~ /ENTER/ )  { $option = "enter"; }
-	          #$outputfield->Append("$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13\n");
-	          #saveandprintuserdata("$option", $4, $3, $4, $7, $9, $5, $6, $2, $8, $10, $11, $12, $13);
-	          save_and_print_user_data("enter", $3, $2, $6, $8, $4, $5, $1, $7, $9, $11, $10, $12);
-	          }
+	     elsif( @read[0] =~ /<(\w{4,5}) r="(\d{1,3}?)" name="(.*?)" id="(\d{1,3})"(.+?)ihash="(.{10})".+\w{4,6}="(.*?)" g="(\d{1,3}?)" type="(.*?)" b="(\d{1,3}?)" y="(.*?)" x="(.*?)" scl="(.+?)" \/>/ )
+	          { save_and_print_user_data($1, $4, $3, $7, $9, $5, $6, $2, $8, $10, $12, $11, $13); }
 	     elsif( @read[0] =~ /<USER ihash="(.+?)" name="(.*?)" id="(.+?)" \/>/ )
 	          { print_output("User $2 $1 ($3) has logged in\n"); }
 	     elsif( @read[0] =~ /<ENTER id="(.+?)" \/>/ )
 	          { print_output("User with id $1 entered this room\n"); }
 	     elsif( @read[0] =~ /<UINFO name="(.*?)" id="(\d{1,3})" \/>/ )
 	          {
-	          if( $logindata{room2} eq "main" )
-	            { $outputfield->Append( "$1 id=$2\n" ); }
+	          if( $logindata->get_room2() eq "main" )
+	            { print_output("$1 id=$2\n"); }
 	          }
          elsif( @read[0] =~ /<SET stat="(.*?)" id="(.+?)" \/>/ )
 	          {
-	          if( $logindata->get_room2() eq "main" )
-	            { print_output("$1 id=$2\n"); }
+			  my($status, $id) = ($1, $2);
+			  my($name) = $userdata->get_name($id);
+			  $userdata->set_status($status, $id);
+			  print_output("$name changed his status to $status");
 	          }
 	     elsif( @read[0] =~ /<SET x="(.*?)" scl="(.+?)" id="(.+?)" y="(.*?)" \/>/ )
 	          {
@@ -563,14 +531,14 @@ sub print_read
 	            elsif( $userdata->get_scl($id) == -100 ) { $scl =  "left"; }
 	            print_output("$name moved to $scl\n");
                 }
-	          if( $stalk{on} == 1 && $stalk{nomove} == 0 && $stalk{id} == $3 )
+	          if( $option{stalk} == 1 && $option{nomove} == 0 && $userdata->get_stalk($3) )
 	            {
 	            $userdata->set_x($1, $id);
 	            $userdata->set_y($4, $id);
 	            $userdata->set_scl($2, $id);
                 send_x_y_scl();
 	            }
-	          if( $stalk{antistalkon} == 1 && $stalk{antistalkid} == $3 )
+	          if( $option{antistalk} == 1 && $userdata->get_antistalk($3) )
                 {
 	            if( $userdata->get_x($id) - $1 < 40 && $userdata->get_x($id) - $1 > -40 )
 	              { $userdata->set_x(680-$1+40); }
@@ -640,7 +608,7 @@ sub print_read
 	     elsif( @read[0] =~ /<ROOM c="(.+?)" n="(.+?)" \/>/ )
 	          {
 	          if( $1 != "0" )
-	            { die; print_output("room $2 persons $1\n"); }
+	            { print_output("room $2 persons $1\n"); }
 	          }
 	     elsif( @read[0] =~ /<\/ROOM>/ )
 	          {}
@@ -649,7 +617,7 @@ sub print_read
 	     elsif( @read[0] =~ /<COUNT \/>/ )
 	          {}
 	     elsif( @read[0] =~ /<COUNT c="(.+?)" n="(.+?)" \/>/ )
-	          { $outputfield->Append( "room $2 persons $1\n" ); }
+	          { print_output("room $2 persons $1\n"); }
 	     elsif( @read[0] =~ /<COM cmt="(.+?)" (.+?) \/>/ )
 	          {
               #<COM cmt"(.+?)" id="(.+?)" cnt="(.+?)" \/>
@@ -665,15 +633,14 @@ sub print_read
 	          if   ( $userdata->get_trip($id) )
 	               { print_output("$name $trip $ihash ($id): $comment\n"); }
 	          else { print_output("$name $ihash ($id): $comment\n"); }
-	          if ( $stalk{on} == 1 )
+	          if ( $option{stalk} == 1 )
 	             {
-	             if( $stalk{id} == $id )
+	             if( $userdata->get_stalk($id) )
 	               {
-	               my($line) = $comment;
-	               $line = decode("cp932", $line);
-	               $line = encode("utf8",  $line);
+	               $comment = decode("cp932", $comment);
+	               $comment = encode("utf8",  $comment);
 	               if( $select->can_write() )
-	                 { print $remote "<COM cmt=\"$line\" />\0"; }
+	                 { print $remote "<COM cmt=\"$comment\" />\0"; }
 	               }
 	             }
 	          }
@@ -692,8 +659,8 @@ sub print_read
 	               if( $1 != 0 )
 	                 { print_output("room $2 persons $1\n"); }
 	               }
-	          elsif( $line =~ /<\w{4,5} r="(\d{1,3})" name="(.*?)" id="(\d{1,3})"(.+?)ihash="(.{10})" \w{4,6}="(.*?)" g="(\d{1,3})" type="(.*?)" b="(\d{1,3})" y="(.*?)" x="(.*?)" scl="(.+?)" \/>/ )
-	               { save_and_print_user_data("enter", $3, $2, $8, $6, $4, $5, $1, $7, $9, $11, $10, $12); }
+	          elsif( $line =~ /<(\w{4,5}) r="(\d{1,3})" name="(.*?)" id="(\d{1,3})"(.+?)ihash="(.{10})" \w{4,6}="(.*?)" g="(\d{1,3})" type="(.*?)" b="(\d{1,3})" y="(.*?)" x="(.*?)" scl="(.+?)" \/>/ )
+	               { save_and_print_user_data($1, $4, $3, $9, $7, $5, $6, $2, $8, $10, $12, $11, $13); }
 	          else { print_output("$line\n"); }
 	          }
          else { print_output("$read[0]\n"); }
@@ -704,22 +671,23 @@ sub print_read
 $window      = Win32::GUI::Window->new( -name => "Window", -title => "Monachat", -height => 320, -width => 620 );
 #$tab        = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
 #$tab1       = $tab->InsertItem( -text => 1 );
-$inputfield  = $window->AddTextfield  ( -name => "Inputfield", -height => 30, -width => 420, -left => 100,
-                                        -top => 240 );
-$outputfield = $window->AddTextfield  ( -height => 180, -width => 520, -left => 50, -top => 40, -multiline => 1,
-                                        -vscroll => 1, -autovscroll => 1 );
+$inputfield  = $window->AddTextfield  ( -name => "Inputfield", -height => 30, -width => 598, -left => 2,
+                                        -top => 240, -multiline => 1, -autohscroll => 1 );
+$outputfield = $window->AddTextfield  ( -height => 220, -width => 598, -left => 2, -top => 10, -multiline => 1,
+                                        -readonly => 1, -vscroll => 1, -autovscroll => 1 );
+$inputfield->SetFocus();
 #$tab  = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
 #$tab1 = $tab->InsertItem( -text => 1 );
 #$tab2 = $tab->InsertItem( -text => 2 );
 #$tab3 = $tab->InsertItem( -text => 3 );
-$searchwindow      = Win32::GUI::Window->new    ( -name => "SearchWindow", -title => "Search Results",
-                                                  -height => 220, -width => 270 );
-$searchoutputfield = $searchwindow->AddTextfield( -height => 120, -width => 220, -left => 20, -top => 20,
-                                                  -multiline => 1, -vscroll => 1 );
-$searchprint       = $searchwindow->AddButton   ( -name => "SearchPrintButton", -text => "Print", -height => 30,
-                                                  -width => 60, -left => 50, -top => 150 );
-$searchupdate      = $searchwindow->AddButton   ( -name => "SearchUpdateButton", -text => "Update", -height => 30,
-                                                  -width => 60, -left => 150, -top => 150 );
+#$searchwindow      = Win32::GUI::Window->new    ( -name => "SearchWindow", -title => "Search Results",
+#                                                  -height => 220, -width => 270 );
+#$searchoutputfield = $searchwindow->AddTextfield( -height => 120, -width => 220, -left => 20, -top => 20,
+#                                                  -multiline => 1, -vscroll => 1 );
+#$searchprint       = $searchwindow->AddButton   ( -name => "SearchPrintButton", -text => "Print", -height => 30,
+#                                                  -width => 60, -left => 50, -top => 150 );
+#$searchupdate      = $searchwindow->AddButton   ( -name => "SearchUpdateButton", -text => "Update", -height => 30,
+#                                                  -width => 60, -left => 150, -top => 150 );
 $window->Center();
 $window->Show();
 
@@ -728,21 +696,21 @@ sub get_argument
     while( @ARGV[0] )
          {
          if   ( @ARGV[0] eq ("-proxy" or "-p") )
-              { $proxy{on} = 1; }
+              { $argument{proxyon} = 1; }
          elsif( @ARGV[0] eq ("-timeout" or "-t") )
-              { shift(@ARGV); $proxy{timeout} = @ARGV[0]; }
+              { shift(@ARGV); $argument{proxytimeout} = @ARGV[0]; }
          elsif( @ARGV[0] eq "-debug" )
-	          { $proxy{debug} = 1; }
+	          { $argument{proxydebug} = 1; }
 		 elsif( @ARGV[0] eq "-skip" )
 		      {
 			  if  ( @ARGV[1] =~ /\d/ )
-			      { $proxy{skip} = shift; }
-			  else{ $proxy{skip} = 1; }
+			      { $argument{proxyskip} = shift; }
+			  else{ $argument{proxyskip} = 1; }
 			  }
          elsif( @ARGV[0] eq "-ip" )
-	          { shift(@ARGV); $socketdata{address} = @ARGV[0]; }
+	          { shift(@ARGV); $argument{socketaddress} = @ARGV[0]; }
          elsif( @ARGV[0] eq "-port" )
-	          { shift(@ARGV); $socketdata{port} = @ARGV[0]; }
+	          { shift(@ARGV); $argument{socketport} = @ARGV[0]; }
          elsif( @ARGV[0] eq "-name" )
 	          { shift(@ARGV); $argument{name} = @ARGV[0]; }
          elsif( @ARGV[0] eq "-character" )
@@ -765,41 +733,41 @@ sub get_argument
 	          { shift(@ARGV); $argument{attrib} = @ARGV[0]; }
          elsif( @ARGV[0] eq ("-room" or "-r") )
               {
-	          shift;
+	          shift(@ARGV);
               if   ( @ARGV[0] eq "iriguchi" )
-                   { $argument{room1} = "MONA8094";    $socketdata{port} = 9095; shift(@ARGV); }
+                   { $argument{room1} = "MONA8094";    $argument{socketport} = 9095; shift(@ARGV); }
               elsif( @ARGV[0] eq "atochi" )
-                   { $argument{room1} = "ANIKI8088";   $socketdata{port} = 9083; shift(@ARGV); }
+                   { $argument{room1} = "ANIKI8088";   $argument{socketport} = 9083; shift(@ARGV); }
               elsif( @ARGV[0] eq "ooheya" )
-                   { $argument{room1} = "MONABIG8093"; $socketdata{port} = 9093; shift(@ARGV); }
+                   { $argument{room1} = "MONABIG8093"; $argument{socketport} = 9093; shift(@ARGV); }
               elsif( @ARGV[0] eq "chibichato" )
-                   { $argument{room1} = "ANIMAL8098";  $socketdata{port} = 9090; shift(@ARGV); }
+                   { $argument{room1} = "ANIMAL8098";  $argument{socketport} = 9090; shift(@ARGV); }
               elsif( @ARGV[0] eq "moa" )
-                   { $argument{room1} = "MOA8088";     $socketdata{port} = 9092; shift(@ARGV); }
+                   { $argument{room1} = "MOA8088";     $argument{socketport} = 9092; shift(@ARGV); }
               elsif( @ARGV[0] eq "chiikibetsu" )
-                   { $argument{room1} = "AREA8089";    $socketdata{port} = 9095; shift(@ARGV); }
+                   { $argument{room1} = "AREA8089";    $argument{socketport} = 9095; shift(@ARGV); }
               elsif( @ARGV[0] eq "wadaibetsu" )
-                   { $argument{room1} = "ROOM8089";    $socketdata{port} = 9090; shift(@ARGV); }
+                   { $argument{room1} = "ROOM8089";    $argument{socketport} = 9090; shift(@ARGV); }
               elsif( @ARGV[0] eq "tateyokoheya" )
-                   { $argument{room1} = "MOXY8097";    $socketdata{port} = 9093; shift(@ARGV); }
+                   { $argument{room1} = "MOXY8097";    $argument{socketport} = 9093; shift(@ARGV); }
               elsif( @ARGV[0] eq "cool" )
-                   { $argument{room1} = "COOL8099";    $socketdata{port} = 9090; shift(@ARGV); }
+                   { $argument{room1} = "COOL8099";    $argument{socketport} = 9090; shift(@ARGV); }
               elsif( @ARGV[0] eq "kanpu" )
-                   { $argument{room1} = "kanpu8000";   $socketdata{port} = 9094; shift(@ARGV); }
+                   { $argument{room1} = "kanpu8000";   $argument{socketport} = 9094; shift(@ARGV); }
               elsif( @ARGV[0] eq "monafb" )
-                   { $argument{room1} = "MOFB8000";    $socketdata{port} = 9090; shift(@ARGV); }
+                   { $argument{room1} = "MOFB8000";    $argument{socketport} = 9090; shift(@ARGV); }
               $argument{room2} = @ARGV[0];
               }
          shift(@ARGV);
          }
      }
 
-my(%argument)   :shared;
-my(%encrypt)    :shared;
-my(%socketdata) :shared;
-my(%trip)       :shared;
-my(@proxyaddr)  :shared;
-my(@proxyport)  :shared;
+share(%argument);
+share(%option);
+share(%socketdata);
+share(%proxy);
+share(@proxyaddr);
+share(@proxyport);
 
 get_argument();
 
@@ -816,14 +784,13 @@ $logindata   =  Userdata->new_login_data(
                 $argument{room1}||"MONA8094",
                 $argument{room2}||"main",
 	            $argument{attrib}||"no" );
-$userdata   = Userdata->new_user_data();
-my(%stalk)      :shared  = ( on => 0, id => 0, ihash => 0 );
-my(%ignore)     :shared  = ( antiignoreon => 0, antiignoreall => 0 );
-my(%socketdata) :shared  = ( address => $socketdata{address}||"153.122.46.192",
-                             port    => $socketdata{port}||9095 );
-my(%proxy)      :shared  = ( on           => $proxy{on}||0,
-	                         timeout      => $proxy{timeout}||2,
-	                         debug        => $proxy{debug}||1 );
+$userdata    = Userdata->new_user_data();
+%socketdata  = ( address => $argument{socketaddress}||"153.122.46.192",
+                 port    => $argument{socketport}||9095 );
+%proxy       = ( on           => $argument{proxyon}||0,
+	             timeout      => $argument{proxytimeout}||2,
+	             debug        => $argument{proxydebug}||1,
+                 skip         => $argument{proxyskip}||0 );
 login("firsttime");
 
 $pingthread       = threads->create(\&ping);
