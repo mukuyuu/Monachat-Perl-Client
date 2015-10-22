@@ -2,21 +2,22 @@ use IO::Socket;
 use Socket;
 use threads;
 use threads::shared qw(share);
-use Encode /encode decode/;
+use Encode qw(encode decode);
 use Win32::GUI;
 use Win32::GUI::Constants;
 use IO::Select;
 use IO::Socket::Socks;
 use LWP::UserAgent;
 use Userdata;
+#use Search;
 
 sub Window_Terminate { return -1; }
-sub SearchWindow_Terminate
-    {
-    $searchwindow->Hide();
-    $searchoutputfield->SelectAll();
-    $searchoutputfield->ReplaceSel( "" );
-    }
+#sub SearchWindow_Terminate
+#    {
+#    $searchwindow->Hide();
+#    $searchoutputfield->SelectAll();
+#    $searchoutputfield->ReplaceSel( "" );
+#    }
 
 sub Inputfield_KeyDown
     {
@@ -50,20 +51,17 @@ sub command_list
     elsif( $command =~ /\/relogin\s*(.*)/ )
 	     {
 	     if   ( $1 =~ /room/ )
-	          { enter_room(); }
+	          { enter_room("reenter"); }
+		 elsif( $1 =~ /skip (\d+)/ )
+		      { $proxy{skip} = $1; login("relogin")}
 	     else { login("relogin"); }
 	     }
     elsif( $command =~ /\/disconnect\s*(\d*)/ )
 	     {
-	     if( $select->can_write() )
-	       { print $remote "<EXIT />\0"; print $remote "<NOP />\0"; print $remote "<NOP />\0"; }
-	     if   ( $1 ) { login("relogin"); }
-	     else {
-		      $pingthread->kill("KILL");
-			  $pingthread->detach();
-			  $readsocketthread->kill("KILL");
-			  $readsocketthread->detach();
-			  }
+	     if   ( $select->can_write() )
+	          { print $remote "<EXIT />\0"; print $remote "<NOP />\0"; print $remote "<NOP />\0"; }
+		 $pingthread->kill("KILL");
+		 $readsocketthread->kill("KILL");
 	     }
     elsif( $command =~ /\/name (.+)/ )
 	     {
@@ -90,10 +88,11 @@ sub command_list
     elsif( $command =~ /\/rgb (\d{1,3}) (\d{1,3}) (\d{1,3})/ )
 	     {
 	     my($r, $g, $b) = ($1, $2, $3);
-	     $logindata->set_r($r);
-         $logindata->set_g($g);
-         $logindata->set_b($b);
-	     enter_room("enterroom");
+		 my($id) = $logindata->get_id();
+	     $userdata->set_r($r, $id);
+         $userdata->set_g($g, $id);
+         $userdata->set_b($b, $id);
+	     enter_room("reenter");
 	     }
     elsif( $command =~ /\/x (.+)/ )
 	     { send_x_y_scl("x$1"); }
@@ -251,9 +250,10 @@ sub command_list
 	        {
 	        my($newinstancecounter) = $1||1;
 	        my($second) = $2||2;
+			my($room) = $logindata->get_room2();
 	        for( my($counter) = 0; $counter < $newinstancecounter; $counter++ )
 	           {
-	           system("perl monachat.pl -proxy -timeout 1 -room $logindata->getroom2()");
+	           system("start perl monachat.pl -proxy -room $room");
 	           sleep($second);
 	           }
 	        }
@@ -284,7 +284,8 @@ sub print_output
     {
     my($text) = shift;
     $text = encode("cp932", $text);
-	$outputfield->Append("$text");
+	$outputfield->Select("-1", "-1");
+	$outputfield->ReplaceSel("$text");
     }
 
 sub login
@@ -293,11 +294,7 @@ sub login
     if ( $option eq "relogin" )
        {
 	   $pingthread->kill("KILL");
-	   if( !$pingthread->is_detached() )
-	     { $pingthread->detach(); }
 	   $readsocketthread->kill("KILL");
-	   if( !$readsocketthread->is_detached() )
-	     { $readsocketthread->detach(); }
        }
    if  ( $proxy{on} == 1 )
        {
@@ -330,7 +327,7 @@ sub login
 	else{ enter_room(); }
     if( $option eq "relogin" )
 	  {
-	  $readsocketthread = threads->create(\&readsocket);
+	  $readsocketthread = threads->create(\&read_socket);
 	  $pingthread       = threads->create(\&ping);
 	  }
     }
@@ -487,7 +484,7 @@ sub print_read
               }
 	     elsif( @read[0] =~ /<ROOM>/ )
 	          {}
-	     #    { $outputfield->Append( "Users in this room:\n" ); }
+	     #    { print_output( "Users in this room:\n" ); }
 	     elsif( @read[0] =~ /<ROOM \/>/ )
 	          {}
 	     elsif( @read[0] =~ /<(\w{4,5}) r="(\d{1,3}?)" name="(.*?)" id="(\d{1,3})"(.+?)ihash="(.{10})".+\w{4,6}="(.*?)" g="(\d{1,3}?)" type="(.*?)" b="(\d{1,3}?)" y="(.*?)" x="(.*?)" scl="(.+?)" \/>/ )
@@ -506,7 +503,7 @@ sub print_read
 			  my($status, $id) = ($1, $2);
 			  my($name) = $userdata->get_name($id);
 			  $userdata->set_status($status, $id);
-			  print_output("$name changed his status to $status");
+			  print_output("$name changed his status to $status\n");
 	          }
 	     elsif( @read[0] =~ /<SET x="(.*?)" scl="(.+?)" id="(.+?)" y="(.*?)" \/>/ )
 	          {
@@ -547,44 +544,33 @@ sub print_read
                 send_x_y_scl();
 	            }
 	          }
-	     elsif( @read[0] =~ /<IG (ihash=".{10}") (id=".+?") \/>|<IG (ihash=".{10}") (stat=".+?") (id=".+?") \/>/ )
+	     elsif( @read[0] =~ /<(IG ihash=".{10}".+id="\d{1,3}") \/>/ )
 	          {
-	          my($name, $id, $stat, $trip, $ihash, $ignore, $ignoredname, $ignoredihash, $antiignoreid);
+	          my($ignoredihash, $id, $stat, $ignore);
 	          {
-	          if ( $1 =~ /ihash="(.+?)"/ )
-	             {
-	             ($ihash, $ignoredname, $ignoredid, $ignoredihash) =
-	             ("$1", "name$trip{$1}", "id$trip{$1}", "ihash$trip{$1}");
-	             }
+			  if  ( $1 =~ /ihash="(.{10})"/ )
+			      { $ignoredihash = $1; }
 	          }
-	          {
-	          if ( $2 =~ /id="(.+?)"/ or $3 =~ /id="(.+?)"/ )
-	             {
-	             ($name, $id, $trip, $ihash, $ignore, $antiignoreid) =
-	             ("name$1", "id$1", "trip$1", "ihash$1", "$1ignore$ihash", "antiignore$1");
-	             }
+			  {
+			  if  ( $1 =~ /id="(\d{1,3})"/ )
+			      { $id = $1; }
 	          }
-	          {
-	          if ( $2 =~ /stat="(.+?)"/ )
-	             { $stat = $1; }
-	          }
-	          if ( ($stat eq "on" or $usersdata{$ignore} == undef) and $stat ne "off" )
-	             {
-	             $usersdata{$ignore} = 1;
-	             $outputfield->Append( "$usersdata{$name} $usersdata{$ihash} ($usersdata{$id}) ignored " );
-	             $outputfield->Append( "$usersdata{$ignoredname} $usersdata{$ignoredihash} ($usersdata{$ignoredid})\n" );
-	             }
-	          elsif( $stat eq "off" or $usersdata{$ignore} == 1 )
-	               {
-	               $usersdata{$ignore} = undef;
-	               $outputfield->Append( "$usersdata{$name} $usersdata{$ihash} ($usersdata{$id}) stopped ignoring " );
-	               $outputfield->Append( "$usersdata{$ignoredname} $usersdata{$ignoredihash} ($usersdata{$ignoredid})\n" );
-	               }
-	          if   ( $ignore{antiignoreon} == 1 )
-	               {
-	               if   ( $ignore{antiignoreall} == 1 ) { login("relogin"); }
-	               elsif( $ignore{$antiignoreid} == 1 ) { login("relogin"); }
-	               }
+			  {
+			  if  ( $1 =~ /stat="(on|off)"/ )
+			      { $userdata->set_ignore($ignoredihash, $stat, $id); }
+			  else{ $userdata->set_ignore($ignoredihash, $stat); }
+			  }
+	          
+			  if   ( $userdata->get_ignore($ignoredihash, $id) )
+			       { $ignore = "ignored"; }
+			  else { $ignore = "stopped ignoring"; }
+			  my($name)  = $userdata->get_name($id);
+			  my($ihash) = $userdata->get_ihash($id);
+			  my($ignoredname, $ignoredid) = $userdata->get_data_by_ihash($ignoredihash);
+	          print_output( "$name $ihash ($id) $ignore $ignoredname $ignoredihash ($ignoredid)\n" );
+	          
+			  if   ( $option{antiignore} and ($option{antiignoreall} or $userdata->get_antiignore($id)) )
+			       { login("relogin"); }
 	          }
 	     elsif( @read[0] =~ /<EXIT \/>/ )
 	          { print_output("You exited the room\n" ); }
@@ -672,9 +658,10 @@ $window      = Win32::GUI::Window->new( -name => "Window", -title => "Monachat",
 #$tab        = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
 #$tab1       = $tab->InsertItem( -text => 1 );
 $inputfield  = $window->AddTextfield  ( -name => "Inputfield", -height => 30, -width => 598, -left => 2,
-                                        -top => 240, -multiline => 1, -autohscroll => 1 );
-$outputfield = $window->AddTextfield  ( -height => 220, -width => 598, -left => 2, -top => 10, -multiline => 1,
+                                        -top => 240, -multiline => 0, -autohscroll => 1 );
+$outputfield = $window->AddRichEdit  ( -height => 220, -width => 598, -left => 2, -top => 10, -multiline => 1,
                                         -readonly => 1, -vscroll => 1, -autovscroll => 1 );
+$inputfield->SetLimitText(50);
 $inputfield->SetFocus();
 #$tab  = $window->AddTabStrip( -name => "Tab", -height => 320, -width => 620, -left => 0, -top => 0 );
 #$tab1 = $tab->InsertItem( -text => 1 );
