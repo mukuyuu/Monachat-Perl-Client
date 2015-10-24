@@ -1,5 +1,4 @@
 package Userdata;
-use Encode qw(encode decode);
 use threads;
 use threads::shared qw(shared_clone);
 
@@ -33,7 +32,6 @@ sub set_name
     {
     my($self, $name, $id) = @_;
     my($idname) = $id . "name";
-    $name = encode("utf8", $name);
     $self->{$idname} = $name;
     }
 
@@ -41,15 +39,13 @@ sub get_name
     {
     my($self, $id) = @_;
     my($idname) = $id . "name";
-    if( $id ) { return $self->{$idname}; }
-    else      { return $self->{name}; }
-    }
+    return $id ? $self->{$idname} : $self->{name};
+	}
 
 sub set_status
     {
     my($self, $status, $id) = @_;
     my($idstatus) = $id . "status";
-    $status = encode("utf8", $status);
     $self->{$idstatus} = $status;
     }
 
@@ -57,15 +53,13 @@ sub get_status
     {
     my($self, $id) = @_;
     my($idstatus) = $id . "status";
-    if( $id ) { return $self->{$idstatus}; }
-    else      { return $self->{status}; }
-    }
+    return $id ? $self->{$idstatus} : $self->{status};
+	}
 
 sub set_character
     {
     my($self, $character, $id) = @_;
     my($idcharacter) = $id . "character";
-    $character = encode("utf8", $character);
     $self->{$idcharacter} = $character;
     }
 
@@ -73,9 +67,8 @@ sub get_character
     {
     my($self, $id) = @_;
     my($idcharacter) = $id . "character";
-    if( $id ) { return $self->{$idcharacter}; }
-    else      { return $self->{character}; }
-    }
+    return $id ? $self->{$idcharacter} : $self->{character};
+	}
 
 sub set_id
     {
@@ -100,8 +93,7 @@ sub get_trip
     {
     my($self, $id) = @_;
     my($idtrip) = $id . "trip";
-    if( $id ) { return $self->{$idtrip}; }
-    else      { return $self->{trip}; }
+	return $id ? $self->{$idtrip} : $self->{trip};
     }
 
 sub set_ihash
@@ -115,8 +107,7 @@ sub get_ihash
     {
     my($self, $id) = @_;
     my($idihash) = $id . "ihash";
-    if( $id ) { return $self->{$idihash}; }
-    else      { return $self->{ihash}; }
+	return $id ? $self->{$idihash} : $self->{ihash};
     }
 
 sub set_room
@@ -134,7 +125,6 @@ sub get_room
 sub set_room2
     {
     my($self, $room2) = @_;
-    $room2 = encode("utf8", $room2);
     $self->{room2} = $room2;
     }
 
@@ -155,8 +145,7 @@ sub get_r
     {
     my($self, $id) = @_;
     my($idr) = $id . "r";
-    if( $id ) { return $self->{$idr}; }
-    else      { return $self->{r}; }
+	return $id ? $self->{$idr} : $self->{r};
     }
 
 sub set_g
@@ -170,8 +159,7 @@ sub get_g
     {
     my($self, $id) = @_;
     my($idg) = $id . "g";
-    if( $id ) { return $self->{$idg}; }
-    else      { return $self->{g}; }
+	return $id ? $self->{$idg} : $self->{g};
     }
 
 sub set_b
@@ -185,8 +173,7 @@ sub get_b
     {
     my($self, $id) = @_;
     my($idb) = $id . "b";
-    if( $id ) { return $self->{$idb}; }
-    else      { return $self->{b}; }
+	return $id ? $self->{$idb} : $self->{b};
     }
 
 sub set_x
@@ -200,8 +187,7 @@ sub get_x
     {
     my($self, $id) = @_;
     my($idx) = $id . "xposition";
-    if( $id ) { return $self->{$idx}; }
-    else      { return $self->{xposition}; }
+	return $id ? $self->{$idx} : $self->{xposition};
     }
 
 sub set_y
@@ -215,8 +201,7 @@ sub get_y
     {
     my($self, $id) = @_;
     my($idy) = $id . "yposition";
-    if( $id ) { return $self->{$idy}; }
-    else      { return $self->{yposition}; }
+	return $id ? $self->{$idy} : $self->{yposition};
     }
 
 sub set_scl
@@ -230,8 +215,7 @@ sub get_scl
     {
     my($self, $id) = @_;
     my($idscl) = $id . "scl";
-    if( $id ) { return $self->{$idscl}; }
-    else      { return $self->{scl}; }
+	return $id ? $self->{$idscl} : $self->{scl};
     }
 
 sub set_attrib
@@ -245,15 +229,14 @@ sub get_attrib
     {
     my($self, $id) = @_;
     my($idattrib) = $id . "attrib";
-    if( $id ) { return $self->{$idattrib}; }
-    else      { return $self->{attrib}; }
+	return $id ? $self->{$idattrib} : $self->{attrib};
     }
 
 sub set_stalk
     {
-	my($self, $on, $id) = @_;
+	my($self, $id) = @_;
 	my($stalkihash) = "stalk" . $self->get_ihash($id);
-	$self->{$stalkihash} = $on;
+	$self->{$stalkihash} = $self->{$stalkihash} ? 0 : 1;
 	}
 
 sub get_stalk
@@ -265,9 +248,9 @@ sub get_stalk
 
 sub set_antistalk
     {
-	my($self, $on, $id) = @_;
+	my($self, $id) = @_;
 	my($antistalkihash) = "antistalk" . $self->get_ihash($id);
-	$self->{$antistalkihash} = $on;
+	$self->{$antistalkihash} = $self->{$antistalkihash} ? 0 : 1;
 	}
 
 sub get_antistalk
@@ -279,19 +262,17 @@ sub get_antistalk
 
 sub set_ignore
     {
-	if  (@_[3])
+	if  ($_[3])
 	    {
 	    my($self, $ihash, $stat, $id) = @_;
 	    my($idignoreihash) = $id . "ignore" . $ihash;
-	    if   ( $stat ==  "on" ) { $stat = 1; }
-	    elsif( $stat == "off" ) { $stat = 0; }
+		$stat = $stat == "on" or "off" and $stat == "on" ? 1 : 0;
 	    $self->{$idignoreihash} = $stat;
 	    }
 	else{
 	    my($self, $ihash, $id) = @_;
 		my($ignoreihashid) = $id . "ignore" . $ihash;
-		if   ( $self->{$idignoreihash} == 1 ) { $self->{$idignoreihash} = 0; }
-		elsif( $self->{$idignoreihash} == 0 ) { $self->{$idignoreihash} = 1; }
+		$self->{$idignoreihash} = $self->{$idignoreihash} ? 0 : 1;
 		}
 	}
 
@@ -306,8 +287,7 @@ sub set_antiignore
     {
 	my($self, $ihash, $id) = @_;
 	my($idantiignoreihash) = $id . "antiignore" . $ihash;
-	if   ( $self->{$idantiignoreihash} == 0 ) { $self->{$idantiignoreihash} = 1; }
-	elsif( $self->{$idantiignoreihash} == 1 ) { $self->{$idantiignoreihash} = 0; }
+	$self->{$idantiignoreihash} = $self->{$idantiignoreihash} ? 0 : 1;
 	}
 
 sub get_antiignore
@@ -315,6 +295,24 @@ sub get_antiignore
 	my($self, $ihash, $id) = @_;
 	my($idantiignoreihash) = $id . "antiignore" . $ihash;
 	return $self->{$idantiignoreihash};
+	}
+
+sub get_data
+    {
+	my($self, $id) = @_;
+	if( $id )
+	  {
+	  my($idname, $idstatus, $idcharacter, $idtrip, $idihash, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	    ($id."name", $id."status", $id."character", $id."trip", $id."ihash", $id."r", $id."g", $id."b",
+		 $id."xposition", $id."yposition", $id."scl", $id."attrib");
+	  return($self->{$idname}, $self->{$idstatus}, $self->{$idcharacter}, $self->{$idtrip}, $self->{$idihash},
+	         $self->{$idr}, $self->{$idg}, $self->{$idb}, $self->{$idx}, $self->{$idy}, $self->{$idscl},
+			 $self->{$idattrib});
+	  }
+	else{
+	    return($self->{name}, $self->{status}, $self->{character}, $self->{trip}, $self->{ihash}, $self->{r},
+		       $self->{g}, $self->{b}, $self->{xposition}, $self->{yposition}, $self->{scl}, $self->{attrib});
+	    }
 	}
 
 sub get_data_by_ihash
@@ -325,9 +323,8 @@ sub get_data_by_ihash
 	    {
 		my($idihash) = $id . "ihash";
 		if( $self->{$idihash} eq $ihash )
-		  { $ihashid = $id; break; }
+		  { return($self->get_name($id), $id); print "$id\n"; }
 		}
-	return($self->get_name($ihashid), $ihashid);
 	}
 
 1;
