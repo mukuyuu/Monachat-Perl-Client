@@ -10,51 +10,53 @@ Monachat perl client is a port of the monachat chat program with extended capabi
 #Install instructions
 
 To install Monachat Perl Client you need to have perl installed in your system.
-Monachat Perl Client uses various non-standard modules which can be installed from CPAN from cmd with:
+Monachat Perl Client uses various non-standard modules which can be installed from CPAN with:
 
+´´´
 cpan
 install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
+´´´
 
 
 #Command list:
 
-/name (NAME):
-Change name to NAME.
-/character (CHARACTER):
-Change character to CHARACTER.
-/stat (STATUS):
-Change status to STATUS.
-/x (X):
+* /name (NAME):<br>
+Changes name to NAME.
+* /character (CHARACTER):<br>
+Changes character to CHARACTER.
+* /stat (STATUS):<br>
+Changes status to STATUS.
+* /x (X):<br>
 Moves horizontally.
-/y (Y):
+* /y (Y):<br>
 Moves vertically.
-/scl:
+* /scl:<br>
 Changes your direction.
-/ignore (ID):
+* /ignore (ID):<br>
 Ignores ID.
-/antiignore (ID):
+* /antiignore (ID):<br>
 If ID ignores you, disconnects and logs in again.
-/stalk (ID) [nomove]:
+* /stalk (ID) [nomove]:<br>
 Automatically repeats al the comments and follows the provided ID across the room, with option [nomove] it just repeat the comments.
-/antistalk (ID):
+* /antistalk (ID):<br>
 The inverse to stalk, if someone comes across you, the character automatically moves to evade being followed.
-/search (main|all) [print]:
-Main: Just has a look to the main room, then prints the user number of the rooms there are users.
-All: First searchs the main room to obtain the rooms in which there are users, then enters each room, stores the user data in every room and then prints the results.
-Print: Instead of showing the output in the log window, sends it as comments.
-/newinstance [here]:
+* /search (main|all) [print]:<br>
+   main: Just has a look to the main room, then prints the user number of the rooms there are users.<br>
+   all: First searchs the main room to obtain the rooms in which there are users, then enters each room, stores the user data in every room and then prints the results.<br>
+   print: Instead of showing the output in the log window, sends it as comments.<br>
+* /newinstance [here]:<br>
 Opens another instance of Monachat Perl Client, in the case you're using a proxy be careful of not using the same that of the first instance.
-Here: Opens another instance in the current room.
-/reenter:
+  here: Opens another instance in the current room.
+* /reenter:<br>
 Exit and enters again in the same room.
-/relogin [skip NUMBER]:
+* /relogin [skip NUMBER]:<br>
 Disconnects and then log in again.
-Skip: Skips the number of successful connections by proxy NUMBER times so that if there is an issue with one proxy, it goes to the next.
-/disconnect:
+    skip: Skips the number of successful connections by proxy NUMBER times so that if there is an issue with one proxy, it goes to the next.
+* /disconnect:<br>
 Forces the server to disconnect. Be careful with it as it can cause the server to ban you.
-/copy (ID):
+* /copy (ID):<br>
 Copies all the data from ID and reenters the room.
-/default:
+* /default:<br>
 Goes back to default login data.
 
 
@@ -66,45 +68,45 @@ It is not recommended to modify directly logindata values as they could not be u
 
 Userdata class API:
 
-In the case you are retrieving your own login data with $login, it is not neccesary to provide an ID to get functions.
+In the case you are retrieving your own login data with $logindata, it is not neccesary to provide an ID to get functions.
 
-set_name(NAME, ID), get_name(ID) :
-Sets and returns a scalar containing name.
-set_id(ID), get_id(ID):
-Sets and returns a scalar containing login ID.
-set_character(CHARACTER, ID), get_character(ID):
-Sets and returns a scalar containing character.
-set_status(STATUS, ID), get_status(ID) :
-Sets and returns a scalar containing status.
-set_trip(TRIP, ID), get_trip(ID) :
-Sets and returns a scalar containing trip.
-set_ihash(IHASH, ID), get_ihash(ID) :
-Sets and returns a scalar containing ihash.
-set_r(R, ID), get_r(ID) :
-Sets and returns a scalar containing the red color.
-set_g(G, ID), get_g(ID) :
-Sets and returns a scalar containing the green color.
-set_b(B, ID), get_b(ID) :
-Sets and returns a scalar containing the blue color.
-set_x(X, ID), get_x(ID) :
-Sets and returns a scalar containing horizontal position.
-set_y(Y, ID), get_y(ID) :
-Sets and returns a scalar containing vertical position.
-set_scl(SCL, ID), get_scl(ID) :
-Sets and returns a scalar containing direction.
-set_attrib(ATTRIB, ID), get_sttrib(ID) :
-Sets and returns a scalar containing attribute.
-set_ignore(IHASH, ID), get_ignore(IHASH, ID) :
-Sets and returns 1 if ignored and 0 if not. ID is the one ignoring the IHASH.
-set_antiignore(ID), get_antiignore(ID) :
-Sets and returns 1 if you are ignored and 0 if not.
-set_stalk(ID), get_stalk(ID) :
-Sets an ID to be stalked and returns 1 if stalked and 0 if not.
-set_antistalk(ID), get_antistalk(ID) :
-Sets an ID to be antistalked and returns 1 if stalked and 0 if not.
-get_data(ID) :
-Returns an array containing [NAME,
-get_data_by_ihash(IHASH) :
+* set_name(NAME, ID) / get_name(ID) :<br>
+Takes a NAME and ID as arguments and returns a scalar containing name.
+* set_id(ID) / get_id(ID):<br>
+Takes an ID as argument and returns a scalar containing login ID.
+* set_character(CHARACTER, ID) / get_character(ID):<br>
+Takes a CHARACTER and ID as arguments and returns a scalar containing character.
+* set_status(STATUS, ID) / get_status(ID) :<br>
+Takes a STATUS and ID as arguments and returns a scalar containing status.
+* set_trip(TRIP, ID) / get_trip(ID) :<br>
+Takes a TRIP as argument and returns a scalar containing trip.
+* set_ihash(IHASH, ID) / get_ihash(ID) :<br>
+Takes an IHASH and ID as arguments and returns a scalar containing ihash.
+* set_r(R, ID) / get_r(ID) :<br>
+Takes red (R) and ID as arguments and returns a scalar containing the red color.
+* set_g(G, ID) / get_g(ID) :<br>
+Takes green (G) and ID as arguments and returns a scalar containing the green color.
+* set_b(B, ID) / get_b(ID) :<br>
+Takes blue (B) and ID as arguments and returns a scalar containing the blue color.
+* set_x(X, ID) / get_x(ID) :<br>
+Takes X and ID as arguments and returns a scalar containing horizontal position.
+* set_y(Y, ID) / get_y(ID) :<br>
+Takes Y and ID as arguments and returns a scalar containing vertical position.
+* set_scl(SCL, ID) / get_scl(ID) :<br>
+Takes a direction (SCL) and ID as arugments and returns a scalar containing direction.
+* set_attrib(ATTRIB, ID) / get_sttrib(ID) :<br>
+Takes an attribute (ATTRIB) and ID as arguments and returns a scalar containing attribute.
+* set_ignore(IHASH, ID) / get_ignore(IHASH, ID) :<br>
+Takes an IHASH and ID as arguments and returns 1 if true and 0 if false. ID is the one ignoring the IHASH.
+* set_antiignore(ID) / get_antiignore(ID) :<br>
+Takes an ID as argument and returns 1 if true and 0 if false.
+* set_stalk(ID) / get_stalk(ID) :<br>
+Takes an ID as argument and returns 1 if true and 0 if false.
+* set_antistalk(ID) / get_antistalk(ID) :<br>
+Takes an ID as argument and returns 1 if true and 0 if not.
+* get_data(ID) :<br>
+Returns an array containing [NAME, STATUS, CHARACTER, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB].
+* get_data_by_ihash(IHASH) :<br>
 Returns a two-element array containing [NAME, ID] of IHASH.
 
 
