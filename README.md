@@ -4,7 +4,7 @@ Monachat Perl Client
 
 #What is Monachat Perl Client?
 
-Monachat perl client is a port of the monachat chat program with extended capabilities, with a focus in anonimity and easy of use, although for the time being it only has a text interface.
+Monachat perl client is a port of the monachat chat program with extended capabilities and a focus in anonimity and easy of use, although for the time being it only has a text interface.
 
 
 #Install instructions
@@ -12,10 +12,10 @@ Monachat perl client is a port of the monachat chat program with extended capabi
 To install Monachat Perl Client you need to have perl installed in your system.
 Monachat Perl Client uses various non-standard modules which can be installed from CPAN with:
 
-´´´
+```
 cpan
 install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
-´´´
+```
 
 
 #Command list:
@@ -104,10 +104,27 @@ Takes an ID as argument and returns 1 if true and 0 if false.
 Takes an ID as argument and returns 1 if true and 0 if false.
 * set_antistalk(ID) / get_antistalk(ID) :<br>
 Takes an ID as argument and returns 1 if true and 0 if not.
-* get_data(ID) :<br>
-Returns an array containing [NAME, STATUS, CHARACTER, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB].
+* set_data(NAME, ID, CHARACTER, STATUS, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB) / get_data(ID) :<br>
+Sets and returns an array containing [NAME, CHARACTER, STATUS, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB].
 * get_data_by_ihash(IHASH) :<br>
 Returns a two-element array containing [NAME, ID] of IHASH.
+* copy(ID, TARGETID):<br>
+Takes an ID as argument and copies the data from that ID to TARGETID.
+* default(OBJECT)
+Takes a login object as an argument and copies the data.
+* invisible
+Sets all the values as undef.
+
+
+#License
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+
+#Author
+
+American man...
+For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).
 
 
 
