@@ -124,56 +124,47 @@ This program is free software: you can redistribute it and/or modify it under th
 #Author
 
 American man...
-For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).
+For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).<br><br><br><br>
 
 
 
+#コマンドリスト
 
-
-#コマンドリスト：
-
-/relogin (部屋)：
-部屋ナンバーを入れた場合はIDを変更せずに部屋に入り直す、入れてない場合は強制的に切断させてサーバーに入り直す。
-プロクシーを使っている場合はIPを変更して
-
-/name (名前)：
-名前変更。
-
-/character (キャラコード)：
-キャラ変更。
-
-/stat (状態)：
-状態変更。
-
-/disconnect：
-ログアウト。
-
-/x (x)：
-横変更。
-
-/y (y)：
-縦変更。
-
-/scl：
-向き変更。
-
-/stalk (ID)：
-ストーカーモード。入力されたIDの発言を繰り替えして、位置を変更すればその位置に移動される。
-
-/antistalk (ID)：
-アンチストーカーモード。入力されたIDが自分の位置に近くなったら遠い位置に移動される。
-
-/search [ユーザーネーム]：
-ユーザーのある部屋に移動して、その部屋のユーザーデータが出てくる。
-
-/newinstance [here]：
-もう一個のクライアントが実行される、hereを入力した場合は今いる部屋にログインされる。
-
-/copy (ID)：
-入力されたIDの持ち主のデータをコピーして部屋に入り直す。
-
-/proxy [on/off]：
-プロクシー設定。
-
-/default：
-元のログインデータに戻る。
+* /name (名前):<br>
+名前を変更する。
+* /character (キャラクター):<br>
+キャラクターを変更する。
+* /stat (状態):<br>
+状態を変更する。
+* /x (横):<br>
+横を変更する。
+* /y (縦):<br>
+縦を変更する。
+* /scl:<br>
+向きの方向を変更する。
+* /ignore (ID):<br>
+IDを無視する。
+* /antiignore (ID):<br>
+IDに無視されたら再ログインする。
+* /stalk (ID) [nomove]:<br>
+自動的にIDの発言を繰り返してIDが移動すれば追いつく、nomoveの場合は発言だけを繰り返す。
+* /antistalk (ID):<br>
+stalkの逆、誰かに追いつけられてれば自動的に移動する。
+* /search (main|all) [print]:<br>
+   main: メインに移動してユーザーのいる部屋をプリントする。<br>
+   all: まずはメインでユーザーがいる部屋を確認して、その次は見回してその部屋にいるユーザーのデータをプリントする。<br>
+   print: ログにプリントする代わりにコメントする。<br>
+* /newinstance [here]:<br>
+Monachat Perl Clientをもう一個起動するプロクシーを使ってれば現在使っているアドレスが出る可能性があるから注意。
+  here: 現在いる部屋に起動する。
+* /reenter:<br>
+部屋に入りなおす。
+* /relogin [skip NUMBER]:<br>
+ログアウトしてもなちゃとにつながりなおす。
+    skip: 接続に成功すれば、次のアドレスで数回の成功をスキップする。
+* /disconnect:<br>
+もなちゃとを強制的に切断させる、何度もやればBANになる可能性がある注意。
+* /copy (ID):<br>
+IDのデータをコピーして部屋に入りなおす。
+* /default:<br>
+元のログインデータで入りなおす。
