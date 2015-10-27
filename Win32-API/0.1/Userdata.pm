@@ -5,15 +5,15 @@ use threads::shared qw(shared_clone);
 sub new_login_data
     {
     my($class) = shift;
-    my($name, $character, $status, $r, $g, $b, $xposition, $yposition, $scl, $room1, $room2, $attrib) = @_;
+    my($name, $character, $status, $r, $g, $b, $x, $y, $scl, $room1, $room2, $attrib) = @_;
     my($self) :shared = shared_clone({ name      => $name||undef,
                                        character => $character||undef,
                                        status    => $status||undef,
                                        r         => $r||undef,
                                        g         => $g||undef,
                                        b         => $b||undef,
-                                       xposition => $xposition||undef,
-                                       yposition => $yposition||undef,
+                                       x         => $x||undef,
+                                       y         => $y||undef,
                                        scl       => $scl||undef,
                                        room1     => $room1||undef,
                                        room2     => $room2||undef,
@@ -179,29 +179,29 @@ sub get_b
 sub set_x
     {
     my($self, $x, $id) = @_;
-    my($idx) = $id . "xposition";
+    my($idx) = $id . "x";
     $self->{$idx} = $x;
     }
 
 sub get_x
     {
     my($self, $id) = @_;
-    my($idx) = $id . "xposition";
-	return $id ? $self->{$idx} : $self->{xposition};
+    my($idx) = $id . "x";
+	return $id ? $self->{$idx} : $self->{x};
     }
 
 sub set_y
     {
     my($self, $y, $id) = @_;
-    my($idy) = $id . "yposition";
+    my($idy) = $id . "y";
     $self->{$idy} = $y;
     }
 
 sub get_y
     {
     my($self, $id) = @_;
-    my($idy) = $id . "yposition";
-	return $id ? $self->{$idy} : $self->{yposition};
+    my($idy) = $id . "y";
+	return $id ? $self->{$idy} : $self->{y};
     }
 
 sub set_scl
@@ -218,6 +218,13 @@ sub get_scl
 	return $id ? $self->{$idscl} : $self->{scl};
     }
 
+sub get_x_y_scl
+    {
+	my($self, $id) = @_;
+	my($idx, $idy, $idscl) = ($id . "x", $id . "y", $id . "sclposition");
+	return $id ? ($self->{$idx}, $self->{$idy}, $self->{$idscl}) :
+	             ($self->{x}, $self->{y}, $self->{scl});
+	}
 sub set_attrib
     {
     my($self, $attrib, $id) = @_;
@@ -297,21 +304,41 @@ sub get_antiignore
 	return $self->{$idantiignoreihash};
 	}
 
+sub set_data
+    {
+	my($self, $name, $id, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl, $attrib) = @_;
+	my($idname, $idcharacter, $idstatus, $idtrip, $idihash, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."character", $id."status", $id."trip", $id."ihash", $id."r", $id."g", $id."b", $id."x",
+	   $id."y", $id."scl", $id."attrib");
+	$self->{$idname}      = $name;
+	$self->{$idcharacter} = $character;
+	$self->{$idstatus}    = $status;
+	$self->{$idtrip}      = $trip;
+	$self->{$idihash}     = $ihash;
+	$self->{$idr}         = $r;
+	$self->{$idg}         = $g;
+	$self->{$idb}         = $b;
+	$self->{$idx}         = $x;
+	$self->{$idy}         = $y;
+	$self->{$idscl}       = $scl;
+	$self->{$idattrib}    = $attrib;
+	}
+
 sub get_data
     {
 	my($self, $id) = @_;
 	if( $id )
 	  {
-	  my($idname, $idstatus, $idcharacter, $idtrip, $idihash, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
-	    ($id."name", $id."status", $id."character", $id."trip", $id."ihash", $id."r", $id."g", $id."b",
-		 $id."xposition", $id."yposition", $id."scl", $id."attrib");
-	  return($self->{$idname}, $self->{$idstatus}, $self->{$idcharacter}, $self->{$idtrip}, $self->{$idihash},
+	  my($idname, $idcharacter, $idstatus, $idtrip, $idihash, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	    ($id."name", $id."character", $id."status", $id."trip", $id."ihash", $id."r", $id."g", $id."b",
+		 $id."x", $id."y", $id."scl", $id."attrib");
+	  return($self->{$idname}, $self->{$idcharacter}, $self->{$idstatus}, $self->{$idtrip}, $self->{$idihash},
 	         $self->{$idr}, $self->{$idg}, $self->{$idb}, $self->{$idx}, $self->{$idy}, $self->{$idscl},
 			 $self->{$idattrib});
 	  }
 	else{
-	    return($self->{name}, $self->{status}, $self->{character}, $self->{trip}, $self->{ihash}, $self->{r},
-		       $self->{g}, $self->{b}, $self->{xposition}, $self->{yposition}, $self->{scl}, $self->{attrib});
+	    return($self->{name}, $self->{character}, $self->{status}, $self->{trip}, $self->{ihash}, $self->{r},
+		       $self->{g}, $self->{b}, $self->{x}, $self->{y}, $self->{scl}, $self->{attrib});
 	    }
 	}
 
@@ -325,6 +352,68 @@ sub get_data_by_ihash
 		if( $self->{$idihash} eq $ihash )
 		  { return($self->get_name($id), $id); print "$id\n"; }
 		}
+	}
+
+sub copy
+    {
+	my($self, $id, $loginid) = @_;
+	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b", $id."x",
+	   $id."y", $id."scl", $id."attrib");
+	my($loginidname, $loginidstatus, $loginidcharacter, $loginidtrip, $loginidr, $loginidg, $loginidb,
+	   $loginidx, $loginidy, $loginidscl, $loginidattrib) =
+	  ($loginid."name", $loginid."status", $loginid."character", $loginid."trip", $loginid."r", $loginid."g",
+	   $loginid."b", $loginid."x", $loginid."y", $loginid."scl", $loginid."attrib");
+	$self->{$loginidname}      = $self->{$idname};
+    $self->{$loginidstatus}    = $self->{$idstatus};
+    $self->{$loginidcharacter} = $self->{$idcharacter};
+    $self->{$loginidtrip}      = $self->{$idtrip};
+    $self->{$loginidr}         = $self->{$idr};
+    $self->{$loginidg}         = $self->{$idg};
+    $self->{$loginidb}         = $self->{$idb};
+    $self->{$loginidx}         = $self->{$idx};
+    $self->{$loginidy}         = $self->{$idy};
+    $self->{$loginidscl}       = $self->{$idscl};
+    $self->{$loginidattrib}    = $self->{$idattrib};	
+	}
+
+sub default
+    {
+	my($self, $logindata) = @_;
+	my($id) = $logindata->{id};
+	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b",
+	   $id."x", $id."y", $id."scl", $id."attrib");
+	$self->{$idname}      = $logindata->{name};
+	$self->{$idstatus}    = $logindata->{status};
+	$self->{$idcharacter} = $logindata->{character};
+	$self->{$idtrip}      = $logindata->{trip};
+	$self->{$idr}         = $logindata->{r};
+	$self->{$idg}         = $logindata->{g};
+	$self->{$idb}         = $logindata->{b};
+	$self->{$idx}         = $logindata->{x};
+	$self->{$idy}         = $logindata->{y};
+	$self->{$idscl}       = $logindata->{scl};
+	$self->{$idattrib}    = $logindata->{attrib};
+	}
+
+sub invisible
+    {
+	my($self, $id) = @_;
+	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b",
+	   $id."x", $id."y", $id."scl", $id."attrib");
+	$self->{$idname}      = undef;
+	$self->{$idstatus}    = undef;
+	$self->{$idcharacter} = undef;
+	$self->{$idtrip}      = undef;
+	$self->{$idr}         = undef;
+	$self->{$idg}         = undef;
+	$self->{$idb}         = undef;
+	$self->{$idx}         = undef;
+	$self->{$idy}         = undef;
+	$self->{$idscl}       = undef;
+	$self->{$idattrib}    = undef;
 	}
 
 1;
