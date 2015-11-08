@@ -11,4 +11,4 @@ scl = 100
 room1 = MONA8094
 room2 = main
 [GRAHPIC OPTIONS]
-graphicinterface = 1
+graphicinterface = 0
