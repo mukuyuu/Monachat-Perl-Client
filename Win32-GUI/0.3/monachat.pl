@@ -9,7 +9,7 @@ use Thread::Queue;
 use Encode qw(encode decode);
 use Win32::GUI;
 use Win32::GUI::Constants;
-use Win32::Sound;
+#use Win32::Sound;
 use IO::Select;
 use IO::Socket::Socks;
 use LWP::UserAgent;
