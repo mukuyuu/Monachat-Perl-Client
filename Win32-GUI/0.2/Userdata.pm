@@ -269,25 +269,17 @@ sub get_antistalk
 
 sub set_ignore
     {
-	if  ($_[3])
-	    {
-	    my($self, $ihash, $stat, $id) = @_;
-	    my($idignoreihash) = $id . "ignore" . $ihash;
-		$stat = $stat == "on" or "off" and $stat == "on" ? 1 : 0;
-	    $self->{$idignoreihash} = $stat;
-	    }
-	else{
-	    my($self, $ihash, $id) = @_;
-		my($ignoreihashid) = $id . "ignore" . $ihash;
-		$self->{$idignoreihash} = $self->{$idignoreihash} ? 0 : 1;
-		}
+	my($self, $ihash, $stat, $id) = @_;
+	my($idignoreihash) = $id . "ignore" . $ihash;
+	$stat = $stat eq "on" ? 1 : 0; # on|off
+	$self->{$idignoreihash} = $stat;
 	}
 
 sub get_ignore
     {
 	my($self, $ihash, $id) = @_;
 	my($idignoreihash) = $id . "ignore" . $ihash;
-	return $self->{$idignoredihash};
+	return $self->{$idignoreihash};
 	}
 
 sub set_antiignore
@@ -345,28 +337,27 @@ sub get_data
 sub get_data_by_ihash
     {
 	my($self, $ihash) = @_;
-	my($ihashid);
 	for my $id (1..300)
 	    {
 		my($idihash) = $id . "ihash";
 		if( $self->{$idihash} eq $ihash )
-		  { return($self->get_name($id), $id); print "$id\n"; }
+		  { return($self->get_name($id), $id); }
 		}
 	}
 
 sub copy
     {
 	my($self, $id, $loginid) = @_;
-	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
-	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b", $id."x",
+	my($idname, $idcharacter, $idstatus, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."character", $id."status", $id."trip", $id."r", $id."g", $id."b", $id."x",
 	   $id."y", $id."scl", $id."attrib");
-	my($loginidname, $loginidstatus, $loginidcharacter, $loginidtrip, $loginidr, $loginidg, $loginidb,
+	my($loginidname, $loginidcharacter, $loginidstatus, $loginidtrip, $loginidr, $loginidg, $loginidb,
 	   $loginidx, $loginidy, $loginidscl, $loginidattrib) =
-	  ($loginid."name", $loginid."status", $loginid."character", $loginid."trip", $loginid."r", $loginid."g",
+	  ($loginid."name", $loginid."character", $loginid."status", $loginid."trip", $loginid."r", $loginid."g",
 	   $loginid."b", $loginid."x", $loginid."y", $loginid."scl", $loginid."attrib");
 	$self->{$loginidname}      = $self->{$idname};
-    $self->{$loginidstatus}    = $self->{$idstatus};
     $self->{$loginidcharacter} = $self->{$idcharacter};
+    $self->{$loginidstatus}    = $self->{$idstatus};
     $self->{$loginidtrip}      = $self->{$idtrip};
     $self->{$loginidr}         = $self->{$idr};
     $self->{$loginidg}         = $self->{$idg};
@@ -381,12 +372,12 @@ sub default
     {
 	my($self, $logindata) = @_;
 	my($id) = $logindata->{id};
-	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
-	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b",
+	my($idname, $idcharacter, $idstatus, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."character", $id."status", $id."trip", $id."r", $id."g", $id."b",
 	   $id."x", $id."y", $id."scl", $id."attrib");
 	$self->{$idname}      = $logindata->{name};
-	$self->{$idstatus}    = $logindata->{status};
 	$self->{$idcharacter} = $logindata->{character};
+	$self->{$idstatus}    = $logindata->{status};
 	$self->{$idtrip}      = $logindata->{trip};
 	$self->{$idr}         = $logindata->{r};
 	$self->{$idg}         = $logindata->{g};
@@ -400,12 +391,12 @@ sub default
 sub invisible
     {
 	my($self, $id) = @_;
-	my($idname, $idstatus, $idcharacter, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
-	  ($id."name", $id."status", $id."character", $id."trip", $id."r", $id."g", $id."b",
+	my($idname, $idcharacter, $idstatus, $idtrip, $idr, $idg, $idb, $idx, $idy, $idscl, $idattrib) =
+	  ($id."name", $id."character", $id."status", $id."trip", $id."r", $id."g", $id."b",
 	   $id."x", $id."y", $id."scl", $id."attrib");
 	$self->{$idname}      = undef;
-	$self->{$idstatus}    = undef;
 	$self->{$idcharacter} = undef;
+	$self->{$idstatus}    = undef;
 	$self->{$idtrip}      = undef;
 	$self->{$idr}         = undef;
 	$self->{$idg}         = undef;
