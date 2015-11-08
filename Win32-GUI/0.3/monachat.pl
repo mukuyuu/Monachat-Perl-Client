@@ -13,7 +13,6 @@ use Win32::Sound;
 use IO::Select;
 use IO::Socket::Socks;
 use LWP::UserAgent;
-use Imager;
 use Userdata;
 
 open(CONFIG, "<", "config.txt") or die "Couldn't open config.txt.";
@@ -1129,16 +1128,6 @@ for my $line (<CONFIG>)
 	   }
 	 }
 close(CONFIG);
-
-#$image = Imager->new();
-#$image->read( file => "test.png" );
-#$image->flip(dir=>"h");
-#$image->write( file => $image );
-#$scaledimage = $image->scaleX(pixels => 180)->scaleY(pixels => 180);
-#$scaledimage->flood_fill(x => 90, y => 90, color => [255, 255, 0, 0]);
-#$scaledimage->write( file => "test1.png" );
-#$pixel = $scaledimage->getpixel( x => 90, y => 90 );
-#die "pixel: $pixel\n";
 
 ### $logindata only stores initial login data
 $logindata = Userdata->new_login_data(
