@@ -1,4 +1,4 @@
-[LOGINDATA]
+[LOGIN DATA]
 name = 名無しさん
 character = mona
 status = 通常
@@ -10,3 +10,5 @@ y = ""
 scl = 100
 room1 = MONA8094
 room2 = main
+[GRAHPIC OPTIONS]
+graphicinterface = 1
