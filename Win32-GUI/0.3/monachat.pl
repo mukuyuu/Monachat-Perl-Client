@@ -407,12 +407,12 @@ sub enter_room
 	my($room)   = $logindata->get_room2() eq "main" ?
 	              $logindata->get_room() :
 	              $logindata->get_room()."/".$logindata->get_room2();
-	while( !$name )
-	     {
+	#while( !$name )
+	#     {
 	     my(@data) = $option eq "firsttime" ? $logindata->get_data() : $userdata->get_data($id);
 		 foreach my $data (keys @data) { $data[$data] = encode("utf8", $data[$data]); }
 		 ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = @data;
-		 }
+	#	 }
 	my($attrib) = $logindata->get_attrib();
 	push_event(26, "all");
 	if( $option eq "reenter" ) { print $remote "<EXIT no=\"$id\" \/>\0"; }
@@ -639,7 +639,7 @@ sub read_socket
 	         read_handler(@read);
 			 }
 		   else {
-		        if( $! ) { print "Read doesn't exist: $!\n"; }
+		        #if( $! ) { print "Read doesn't exist: $!\n"; }
 			    login();
 			    }
 		   }
