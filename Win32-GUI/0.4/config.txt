@@ -17,7 +17,7 @@ backgroundcolor = #AAAAAA
 [SOCKET OPTIONS]
 address = 153.122.46.192
 port = 9095
-proxy = on
+proxy = off
 timeout = 0.4
 debug = 1
 socksversion = 4
