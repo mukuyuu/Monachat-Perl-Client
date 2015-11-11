@@ -1,7 +1,9 @@
 use warnings;
 use diagnostics;
-use IO::Socket;
 use Socket;
+use IO::Socket;
+use IO::Socket::Socks;
+use IO::Select;
 use threads;
 use threads::shared qw(share);
 use Thread::Semaphore;
@@ -10,20 +12,19 @@ use Encode qw(encode decode);
 use Win32::GUI;
 use Win32::GUI::Constants;
 #use Win32::Sound;
-use IO::Select;
-use IO::Socket::Socks;
 use LWP::UserAgent;
+#use Imager;
 use Userdata;
 
 open(CONFIG, "<", "config.txt") or die "Couldn't open config.txt.";
 for my $line (<CONFIG>)
     {
-	if( $line =~ /graphicinterface = (\d)/ )
+	if( $line =~ /^graphicinterface = (\d)$/ )
 	  { $ENABLE_GRAPHIC_INTERFACE = $1; last; }
 	}
 close(CONFIG);
 
-if( $ENABLE_GRAPHIC_INTERFACE == 1 )
+if( $ENABLE_GRAPHIC_INTERFACE ) ### Doesn't work, modules are loaded at compile time
   {
   use SDL;
   use SDL::Surface;
@@ -37,24 +38,33 @@ if( $ENABLE_GRAPHIC_INTERFACE == 1 )
   use SDLx::Text;
   }
 
-open(LOG, ">>", "log.txt") or die "Couldn't open log.txt: $!"; ### Not closed
-
 ### Write the date everytime the program is executed
+open(LOG, ">>", "log.txt") or die "Couldn't open log.txt: $!";
 (undef, undef, undef, $DAY, $MONTH, $YEAR) = localtime(time());
 $YEAR = substr($YEAR, 1);
 print LOG "[$DAY/$MONTH/$YEAR]\n";
+close(LOG);
 
 ### So that errors are written in log.txt
 $SIG{__WARN__} = sub { my($second, $minute, $hour) = localtime(time());
-                       print LOG "[$hour:$minute:$second] Warning: @_";
-                       print "Warning: ", @_; };
+                       open(LOG, ">>", "log.txt");
+					   print LOG "[$hour:$minute:$second] Warning: @_";
+                       print "Warning: ", @_;
+					   close(LOG); };
 $SIG{__DIE__}  = sub { my($second, $minute, $hour) = localtime(time());
-                       print LOG "[$hour:$minute:$second] Error: @_";
-                       print "Error: ", @_; };
+                       open(LOG, ">>", "log.txt");
+					   print LOG "[$hour:$minute:$second] Error: @_";
+                       print "Error: ", @_;
+					   close(LOG); };
 
 ### The event loop in Win32::GUI is ended when -1 is returned
-sub Window_Terminate
-    { return -1; }
+sub Window_Terminate { return -1; }
+
+sub Window_Minimize
+    {
+	$window->Disable();
+	$window->Hide();
+	}
 
 ### Window move event, returns window position as an array with [up, down, left right]
 sub Window_Move
@@ -64,11 +74,22 @@ sub Window_Move
 	print "$position[0], $position[1], $position[2], $position[3]\n";
     };
 
-### So that inputfield never loses focus
-sub Inputfield_LostFocus
-    { $inputfield->SetFocus(); }
+sub NotifyIcon_Click
+    {
+	$window->Enable();
+	$window->Show();
+	}
 
-### If enter(13) is pushed down send the text and erases inputfield
+### So that inputfield never loses focus
+sub Inputfield_LostFocus { $inputfield->SetFocus(); }
+
+### If enter(13) is pressed send the text and erases inputfield
+### If up(38) is pressed loop between previous comments upside
+### If down(40) is pressed loop between previous comments downside
+### Issues:
+### - Annoying sound when pressing enter
+### - When looping between @inputline elements upside cursor position isn't in the last position
+### - Also you can't move between $inputfield positions with left and right
 sub Inputfield_KeyDown
     {
     shift;
@@ -82,19 +103,43 @@ sub Inputfield_KeyDown
         if( $text =~ /^\// )
 	      { command_handler($text); }
         else {
-		     #if( $text =~ /a/ )
-		     #  { push_event(30); }
+		     #if( $text =~ /a/ ) { push_event(30); }
 	         $text = encode("utf8", $text) or die "Couldn't encode: $!\n";
 	         $writesocketqueue->enqueue("<COM cmt=\"$text\" />");
 	         }
+		if( $inputline[9] ) { pop(@inputline); }
+		chomp($text);
+		unshift(@inputline, $text);
         $inputfield->SelectAll();
         $inputfield->ReplaceSel("");
 		}
-      }
+     }
+   elsif( $key == 38 )
+        {
+		#$inputfield->ScrollCaret();
+		my($text) = $inputfield->Text() || "";
+		$text = decode("utf8", $text);
+		if( $inputfield == 0 ) { unshift(@inputline, $text); }
+		if( $inputline[$inputcounter + 1] )
+		  {
+		  $inputcounter++;
+		  $inputfield->SelectAll();
+		  $inputfield->ReplaceSel($inputline[$inputcounter]);
+		  }
+		}
+   elsif( $key == 40 )
+        {
+		if( $inputline[$inputcounter - 1] )
+		  {
+		  $inputcounter--;
+		  $inputfield->SelectAll();
+		  $inputfield->ReplaceSel($inputline[$inputcounter]);
+		  }
+		}
    }
 ### Handles $inputfield input
 ### Issues:
-### - Search not yet implemented
+### - Trip search in /addname not yet implemented
 ### - Antistalk not well implemented
 sub command_handler
     {
@@ -139,9 +184,9 @@ sub command_handler
 	     }
     elsif( $command =~ /\/rgb (\d{1,3}|x) (\d{1,3}|x) (\d{1,3}|x)/ )
 	     {
-		 my($r) = $r eq "x" ? $userdata->get_r($loginid) : $1;
-		 my($g) = $g eq "x" ? $userdata->get_g($loginid) : $2;
-		 my($b) = $b eq "x" ? $userdata->get_b($loginid) : $3;
+		 my($r) = $1 eq "x" ? $userdata->get_r($loginid) : $1;
+		 my($g) = $2 eq "x" ? $userdata->get_g($loginid) : $2;
+		 my($b) = $3 eq "x" ? $userdata->get_b($loginid) : $3;
 	     $userdata->set_r($r, $loginid);
          $userdata->set_g($g, $loginid);
          $userdata->set_b($b, $loginid);
@@ -172,10 +217,9 @@ sub command_handler
 	     }
     elsif( $command =~ /\/search (.+)/ )
 	     {
-		 ### Search main is useless, as search has to search at least the main room, user not yet implemented
-		 if   ( $1 =~ /print/ )     { $option{searchprint} = 1; }
-		 if   ( $1 =~ /main/ )      { $writesocketqueue->enqueue("SEARCHMAIN"); }
-	     elsif( $1 =~ /all/ )       { $writesocketqueue->enqueue("SEARCHALL"); }
+		 if   ( $1 eq "print" ) { $option{searchprint} = 1; }
+		 if   ( $1 eq "main"  ) { $writesocketqueue->enqueue("SEARCHMAIN"); }
+	     elsif( $1 eq "all"   ) { $writesocketqueue->enqueue("SEARCHALL"); }
 	     elsif( $1 =~ /user (.+)/ )
 		      {
 			  $option{searchuser} = $1;
@@ -187,7 +231,7 @@ sub command_handler
 	     if( $1 eq "on" or $1 eq "off"  )
 		   {
 		   $option{stalk} = $1 eq "on" ? 1 : 0;
-		   print_output("Stalk $1.\n");
+		   print_output("NOTIFICATION", "Stalk $1.\n");
 		   }
 	     elsif( $1 eq "nomove" )
 	          { $option{nomove} = $option{nomove} ? 0 : 1; }
@@ -199,6 +243,7 @@ sub command_handler
 			  $option{stalk}   = 1;
 	          $userdata->set_stalk($id);
               $writesocketqueue->enqueue("SETXYSCL", "$line");
+			  print_output("NOTIFICATION", "Stalk id $id.\n");
 	          }
 	     }
     elsif( $command =~ /\/antistalk (.+)/ )
@@ -206,13 +251,14 @@ sub command_handler
 		 if   ( $1 eq "on" or $1 eq "off"  )
 		      {
 			  $option{antistalk} = $1 eq "on" ? 1 : 0;
-			  print_output("Antistalk $1.\n");
+			  print_output("NOTIFICATION", "Antistalk $1.\n");
 			  }
 	     elsif( $1 =~ /(\d{1,3})/ )
 	          {
 		      my($id) = $1;
 		      $option{antistalk} = 1;
 		      $userdata->set_antistalk($id);
+			  print_output("NOTIFICATION", "Antistalk id $id.\n");
 	          }
 	     }
     elsif( $command =~ /\/copy (.+)/ )
@@ -226,9 +272,11 @@ sub command_handler
 	     $userdata->default($logindata);
 		 $option{stalk}  = 0;
 		 $option{nomove} = 0;
+		 $option{antiignore} = 0;
+		 $option{antiignoreall} = 0;
 		 $writesocketqueue->enqueue("REENTER");
 		 }
-	elsif( $command =~ "/invisible" )
+	elsif( $command eq "/invisible" )
 		 {
 		 $userdata->invisible($loginid);
 		 $writesocketqueue->enqueue("REENTER");
@@ -238,7 +286,7 @@ sub command_handler
 	     if( $1 eq "on" or $1 eq "off" )
 	       {
 		   $proxy{on} = $1 eq "on" ? 1 : 0;
-		   print_output("Proxy $1\n");
+		   print_output("NOTIFICATION", "Proxy $1\n");
 		   }
 	     elsif( $1 =~ /timeout (\d\.*\d*)/ )
 	          { $proxy{timeout} = $1; }
@@ -246,12 +294,12 @@ sub command_handler
 	     }
     elsif( $command =~ /\/clear (.+)/ )
 		 {
-		 if( $1 =~ /screen/ )
+		 if( $1 eq "screen" )
 	       {
 	       $outputfield->SelectAll();
 		   $outputfield->ReplaceSel("");
 	       }
-		 elsif( $1 =~ /userdata/ )
+		 elsif( $1 eq "userdata" )
 	          {
               undef $userdata;
               $userdata = Userdata->new_user_data();
@@ -273,39 +321,48 @@ sub command_handler
 	        }
 	     else { system("start perl monachat.pl -proxy"); }
 	     }
-    elsif( $command =~ /\/antiignore\s*(\d*)/ )
+    elsif( $command =~ /\/antiignore (.+)/ )
 	     {
-		 if( $1 =~ ("on"|"off") )
+		 if( $1 eq "on" or $1 eq "off" )
 		   {
-		   $option{antiignoreon} = $1 eq "on" ? 1 : 0;
-		   print_output("Antiignore $1.\n");
+		   $option{antiignore} = $1 eq "on" ? 1 : 0;
+		   if( $1 eq "off" ) { $option{antiignoreall} = 0; }
+		   print_output("NOTIFICATION", "Antiignore $1.\n");
 		   }
 		 elsif( $1 =~ /(\d{1,3})/ )
 		      {
 		      my($id) = $1;
-			  my($on) = $userdata->get_antiignore($id) ? 0 : 1;
-	          $option{antiignoreon} = 1;
-			  $userdata->set_antiignore($on, $id);
+	          $option{antiignore} = 1;
+			  $userdata->set_antiignore($id);
+			  print_output("NOTIFICATION", "Antiignore id $id.\n");
 	          }
 	     elsif( $1 =~ /all/ )
 	          { $option{antiignoreall} = $option{antiignoreall} ? 0 : 1; }
 	     }
-	elsif( $command =~ /\/alarm (.+)/ )
+	elsif( $command =~ /\/nomovedata/ )
+	     {
+		 $option{nomovedata} =
+		 $1 eq "on"  ? 1 :
+		 $1 eq "off" ? 0 : $option{nomovedata};
+		 }
+	elsif( $command eq "/shutup" )
+	     { $writesocketqueue->enqueue("SHUTUP"); }
+	elsif( $command =~ /\/popup (.+)/ )
 	     {
 		 ### Not working
 		 if( $1 eq "on" or $1 eq "off" )
 		   {
-		   $option{alarm} = $1 eq "on" ? 1 : 0;
-		   print_output("Alarm $1\n");
+		   $option{popup} = $1 eq "on" ? 1 : 0;
+		   print_output("NOTIFICATION", "Popup $1.\n");
 		   }
 		 else {
-		      $option{alarm} = 1;
-			  push(@alarmtrigger, $1);
+		      $option{popup} = 1;
+			  push(@popuptrigger, $1);
 			  }
 		 }
-	elsif( $command =~ /\/open/ )
+	elsif( $command eq "/open" )
 	     { $sdlwindowthread = threads->create(\&sdl_window); }
-	elsif( $command =~ /\/close/ )
+	elsif( $command eq "/close" )
 	     {
 		 if( $ENABLE_GRAPHIC_INTERFACE )
 		   {
@@ -313,6 +370,8 @@ sub command_handler
 		   SDL::Events::push_event($event);
 		   }
 		 }
+	elsif( $command =~ /\/backgroundcolor (.+)/ )
+	     { $outputfield->SetBkgndColor($1); }
 	elsif( $command =~ /\/getname (.{1,10})/ )
 	     {
 		 my($match);
@@ -320,36 +379,123 @@ sub command_handler
 		 my($trip)   = $search =~ /^(\d{1,3})$/ ? $userdata->get_ihash($1) : $search;
 		 if( $trip )
 		   {
-		   open(TRIP, "<", "trip.txt") or print_output("Couldn't open trip.txt.\n") and last;
+		   open(TRIP, "<", "trip.txt") or print_output("ERROR", "Couldn't open trip.txt.\n") and last;
 		   for my $line (<TRIP>)
 		       {
 			   if( $line =~ /^\Q$trip\E/ )
 			     {
+				 chomp($line);
 				 $line = decode("utf8", $line);
-			     print_output("$line\n");
+			     print_output("SEARCH", "$line\n");
 			     $match = 1;
 			     last;
 			     }
 			   }
-		   if( !$match ) { print_output("Trip $trip not found.\n"); }
+		   if( !$match ) { print_output("ERROR", "Trip $trip not found.\n"); }
 		   close(TRIP);
 		   }
-		 else { print_output("Trip with id $trip doesn't exist\n"); }
+		 else { print_output("ERROR", "Trip with id $trip doesn't exist\n"); }
 		 }
-	elsif( $command =~ /\/exit/ )
-	     { die; }
-	else { print_output("Command $command not recognized.\n"); }
+	elsif( $command =~ /\/addname (\d{1,3}) (.+)/ )
+	     {
+		 my($trip) = $userdata->get_ihash($1);
+		 my($name) = $2;
+		 #my($trip) = $trip =~ /^(\d{1,3})$/ ? $userdata->get_ihash($1) : $trip;
+         $tripqueue->enqueue($trip, $name);		 
+		 }
+	elsif( $command eq "/getroom" )
+	     { foreach my $id (keys %roomid) { print_data("USER", $id); } }
+	elsif( $command =~ /\/save\s*(.*)/  )
+	     {
+		 my($name) = $1 ? $1 : $logindata->get_room2();
+		 my($text) = $outputfield->Text();
+		 my($second, $minute, $hour, $day, $month, $year) = localtime(time());
+		 my($filename) = "[$day-$month-$year ".$second."s".$minute."m".$hour."h"."] $name.txt";
+		 if( !-e "/LOG" ) { system("mkdir LOG"); }
+		 open(CHATLOG, ">", "LOG/$filename") or print_output("ERROR", "Couldn't save log: $!\n");
+		 print CHATLOG $text;
+		 close(CHATLOG);
+		 if( -e "LOG/$filename" ) { print_output("NOTIFICATION", "Log saved as $filename\n"); }
+		 }
+	elsif( $command eq "/exit" ) { die; }
+	else { print_output("ERROR", "Command $command not recognized.\n"); }
     }
 
+sub print_list
+    {
+	my(@arguments) = @_;
+	while(@arguments)
+	     {
+		 my($color) = shift(@arguments);
+		 my($text)  = shift(@arguments);
+		 $text = encode("cp932", $text);
+		 $outputfield->Select("-1", "-1");
+		 $outputfield->SetCharFormat(-color => $color);
+		 $outputfield->ReplaceSel($text);
+		 }
+	}
 
 ### Prints output to outputfield
 ### Maybe encodings cause errors to japanese users?
 sub print_output
     {
-    my($text) = shift;
-    $text = encode("cp932", $text);
-	$outputfield->Select("-1", "-1");
-	$outputfield->ReplaceSel("$text");
+	my($option) = shift;
+	my($usercolor);
+	if( $_[0] eq "USERCOLOR" ) { shift; $usercolor = shift; }
+	if( $usercolor eq "#FFFFFF" or $usercolor eq "#646464" ) { $usercolor = "#000000"; }
+	if( $option eq "USERDATA" )
+	  {
+	  my($name, $trip, $ihash, $id, $status, $character, $x, $scl, $option) = @_;
+	  print_list(
+	    $usercolor||"#000000", "$name",
+		$usercolor||"#000000", "$trip$ihash",
+		$usercolor||"#000000", " ($id)",
+		$usercolor||"#000000", " $status",
+		$usercolor||"#000000", " $character",
+		$usercolor||"#000000", " $x $scl",
+		$usercolor||"#000000", "$option\n" );
+	  }
+	elsif( $option eq "COMMENT" )
+	     {
+	     my($date, $name, $trip, $ihash, $id, $comment) = @_;
+	     print_list(
+	       "#000000", $date,
+		   $usercolor||"#000000", " $name",
+		   $usercolor||"#000000", "$trip$ihash",
+		   $usercolor||"#000000", " ($id)",
+		   "#000000", ": $comment\n" );
+	     }
+	elsif( $option eq "IGNORE" )
+	     {
+		 my($name, $ihash, $id, $ignore, $ignorecolor, $ignorename, $ignoreihash, $ignoreid) = @_;
+		 if( $ignorecolor eq "#FFFFFF" or $ignorecolor eq "#646464" ) { $ignorecolor = "#000000"; }
+		 print_list(
+		   $usercolor||"#000000", $name,
+		   $usercolor||"#000000", " $ihash",
+		   $usercolor||"#000000", " ($id)",
+		   "#000000", " $ignore",
+		   $ignorecolor||"#000000", " $ignorename",
+		   $ignorecolor||"#000000", " $ignoreihash",
+		   $ignorecolor||"#000000", " ($ignoreid)\n" );
+		 }
+	else {
+	     my($text)  = shift;
+	     my($color) =
+		   $option eq "SEARCH"       ? "#FFFF00" :
+		   $option eq "NOTIFICATION" ? "#0000FF" :
+		   $option eq "LOGIN"        ? "#00FF00" :
+		   $option eq "ENTER"        ? $usercolor||"#000000" :
+		   $option eq "CHANGE"       ? $usercolor||"#000000" :
+		   $option eq "IGNORE"       ? "#000000" :
+		   $option eq "RSET"         ? $usercolor||"#000000" :
+		   $option eq "ROOM"         ? "#0000FF" :
+		   $option eq "EXIT"         ? $usercolor||"#000000" :
+		   $option eq "ERROR"        ? "#FF0000" : "#000000";
+		 $text = encode("cp932", $text);
+		 $outputfield->Select("-1", "-1");
+		 $outputfield->SetCharFormat(-color => $color);
+		 $outputfield->ReplaceSel($text);
+		 }
     }
 
 ### Login function, this function is never called from the main thread
@@ -369,12 +515,13 @@ sub login
            {
            if( !@proxyaddr ) { get_proxy_list(); }
            $remote = IO::Socket::Socks->new(
-			 ProxyAddr   => $proxyaddr[0],
-	         ProxyPort   => $proxyport[0],
-	         ConnectAddr => $socketdata{address}||"153.122.46.192",
-	         ConnectPort => $socketdata{port}||"9095",
-	         SocksDebug  => $proxy{debug}||1,
-	         Timeout     => $proxy{timeout}||2 )
+			 ProxyAddr    => $proxyaddr[0],
+	         ProxyPort    => $proxyport[0],
+	         ConnectAddr  => $socketdata{address},
+	         ConnectPort  => $socketdata{port},
+	         SocksDebug   => $proxy{debug},
+	         Timeout      => $proxy{timeout},
+			 SocksVersion => $proxy{version} )
            or warn "$SOCKS_ERROR\n" and shift(@proxyaddr) and shift(@proxyport) and redo;
            if( $proxy{skip} > 0 ) { shift(@proxyaddr); shift(@proxyport); $proxy{skip}--; redo; }
 		   last;
@@ -382,8 +529,8 @@ sub login
       }
     else {
          $remote = IO::Socket::INET->new(
-		   PeerAddr => $socketdata{address}||"153.122.46.192",
-	       PeerPort => $socketdata{port}||"9095",
+		   PeerAddr => $socketdata{address},
+	       PeerPort => $socketdata{port},
 	       Proto    => "tcp" )
 	       or die "Couldn't connect: $!";
          }
@@ -409,12 +556,14 @@ sub enter_room
 	              $logindata->get_room()."/".$logindata->get_room2();
 	#while( !$name )
 	#     {
-	     my(@data) = $option eq "firsttime" ? $logindata->get_data() : $userdata->get_data($id);
-		 foreach my $data (keys @data) { $data[$data] = encode("utf8", $data[$data]); }
-		 ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = @data;
+		 ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = #@data;
+	     #my(@data) = 
+		 $option eq "firsttime" ? $logindata->get_data() : $userdata->get_data($id);
+		 #foreach my $data (keys @data) { $data[$data] = encode("utf8", $data[$data]); }
 	#	 }
 	my($attrib) = $logindata->get_attrib();
-	push_event(26, "all");
+	%roomid = ();
+	if( $ENABLE_GRAPHIC_INTERFACE ) { push_event(26, "all"); }
 	if( $option eq "reenter" ) { print $remote "<EXIT no=\"$id\" \/>\0"; }
 	if( $logindata->get_room2() eq "main" )
 	  { print $remote "<ENTER room=\"$room\" name=\"$name\" attrib=\"$attrib\" />\0"; }
@@ -438,9 +587,8 @@ sub send_x_y_scl
 ### Search function, first searches the main room and stores room with users, then if $option{SEARCHALL} is
 ### true searches those rooms, if $option{USER $user} is on then stops if that user is found
 ### Issues:
-### - When you connect for the first time, main room data is retrieved correctly,
-###   but not so when you enter for a second time
-### - User search not yet implemented
+### - Not sure if ping problem while looping between all rooms is fixed
+### - Search print probably doesn't work
 sub search
     {
 	my($option) = shift;
@@ -468,12 +616,21 @@ sub search
               {
               $logindata->set_room2($key);
 			  enter_room("reenter");
+			  ### Checks for ping
               if( $select->can_read() )
 			    {
+				for( my($counter); $writesocketqueue->peek($counter); $counter++ )
+				   {
+				   if( $writesocketqueue->peek($counter) eq "<NOP />" )
+				     {
+					 $writesocketqueue->extract($counter);
+					 print $remote "<NOP />\0";
+					 }
+				   }
                 sleep(1);
                 sysread($remote, $read, 20000);
                 $read = decode("utf8", $read);
-				print_output("Room $key:\n");
+				print_output("SEARCH", "Room $key:\n");
                 while( $read =~ m/<(USER)\s r="(\d{1,3})"\s name="(.*?)"\s id="(\d{1,3})"(.+?)ihash="(.{10})".+?
 				                  \w{4,6}="(.*?)"\s g="(\d{1,3})"\s type="(.*?)"\s b="(\d{1,3})"\s y="(.*?)"\s
 								  x="(.*?)"\s scl="(.+?)"\s \/>/xg )
@@ -493,7 +650,7 @@ sub search
 	  if( $option{end} )
 	    {
 		my($line) = "User ".$option{searchuser}." found.\n";
-		print_output($line);
+		print_output("SEARCH", $line);
 		enter_room("reenter");
 		$option{searchuser} = undef;
 		$option{end} = 0;
@@ -510,17 +667,24 @@ sub search
 	     my($roomswithusers) = scalar keys %roomdata;
          if  ( $option{searchprint} )
              { print $remote "<COM cmt=\"There are $roomswithusers rooms with people:\" />\0"; }
-         else{ print_output("There are $roomswithusers rooms with people:\n"); }
+         else{ print_output("SEARCH", "There are $roomswithusers rooms with people:\n"); }
          foreach my $key ( sort( keys %roomdata ) )
                  {
                  if( $option{searchprint} )
                    {
-                   print $remote "<COM cmt=\"room $key: $roomdata{$key}\" />\0";
+				   my($line) = "room $key: $roomdata{$key}";
+				   if( length($line) > 50 )
+				     {
+					 my(@line) = split(/.{50}/, $line);
+					 for( my($counter); $line[$counter]; $counter++ )
+					    { print $remote "<COM cmt=\"$line[$counter]\" />\0"; }
+					 }
+				   else { print $remote "<COM cmt=\"$line\" />\0"; }
                    if( ++$counter < $roomswithusers ) { sleep(1); }
                    }
                  else {
 			          my($option) = ++$counter < $roomswithusers ? ", " : "\n";
-                      print_output("room $key: $roomdata{$key}$option");
+                      print_output("SEARCH", "room $key: $roomdata{$key}$option");
                       }
                  }
          $option{searchprint} = 0;
@@ -535,8 +699,8 @@ sub get_proxy_list
 	$useragent->show_progress(1);
     my($proxylist) = $useragent->get("http://www.socks-proxy.net");
 	$proxylist     = $proxylist->content();
-    @proxyaddr     = $proxylist =~ /<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})<\/td><td>\d{4,5}<\/td>/g;
-    @proxyport     = $proxylist =~ /<td>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}<\/td><td>(\d{4,5})<\/td>/g;
+    @proxyaddr     = $proxylist =~ /<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})<\/td><td>\d{4,5}<\/td>.+?Socks4/g;
+    @proxyport     = $proxylist =~ /<td>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}<\/td><td>(\d{4,5})<\/td>.+?Socks4/g;
 	}
 
 ### Ping function, this function is only used as a separate thread
@@ -568,17 +732,21 @@ sub ping
 ### 6. Copies @array to trip.txt
 sub trip_store
     {
+	no warnings; ### Wide character in print at 640
 	while( my($ihash) = $tripqueue->dequeue() )
 	     {
 		 my($name) = $tripqueue->dequeue();
 	     if( !-e "trip.txt" )
 		   {
-		   open(TRIP, ">", "trip.txt");
+		   open(TRIP, ">", "trip.txt") or die "Couldn't create trip.txt\n";
 		   print TRIP "$ihash : $name";
 		   }
 		 else {
-		      open(TRIP, "<:encoding(UTF-8)", "trip.txt") or print_output("Couldn't open trip.txt.\n");
+		      open(TRIP, "<:encoding(UTF-8)", "trip.txt") or print_output("ERROR", "Couldn't open trip.txt.\n")
+			                                              and redo;
 	          my(@trip) = <TRIP>;
+			  if($trip[0] eq "" or $trip[0] eq " " or !$trip[0])
+			    { print_output("ERROR", "Couldn't load trip.txt.\n"); }
 	          close(TRIP);
 	          foreach my $line ( keys @trip )
 			          {
@@ -590,8 +758,10 @@ sub trip_store
 					    }
 				      elsif( !$trip[$line + 1] ) { push(@trip, "$ihash : $name"); }
 			          }
-	          open(TRIP, ">", "trip.txt") or print_output("Couldn't open trip.txt.\n");
+	          open(TRIP, ">", "trip.txt") or print_output("ERROR", "Couldn't open trip.txt.\n") and redo;
 	          chomp(@trip);
+			  if( $trip[0] eq "" or $trip[0] eq " " or !$trip[0] )
+			  { print_output("ERROR", "Couldn't load trip.txt.\n"); redo; }
 		      foreach my $line ( keys @trip )
 		              {
 				      if( $trip[$line + 1] ) { print TRIP "$trip[$line]\n"; }
@@ -617,15 +787,15 @@ sub read_socket
 	     {
 		 local $SIG{"KILL"} = sub {
 		   $remote->close();
-		   print_output("Disconnected from server.\n"); };
+		   print_output("NOTIFICATION", "Disconnected from server.\n"); };
 		 local $SIG{"STOP"} = sub {
 		   my($second) = time() - $starttime;
 		   my($minute) = $second / 60;
 		   $second    %= 60;
 		   $starttime  = time();
-		   print_output("Disconnected from server, trying to relogin...\n");
-		   print_output("Uptime: $minute m $second s.\n");
-		   login(); };
+		   print_output("NOTIFICATION", "Disconnected from server, trying to relogin...\n");
+		   print_output("NOTIFICATION", "Uptime: $minute m $second s.\n");
+		   login("notfirsttime"); }; #
 		 
 		 if( $write = $writesocketqueue->dequeue_nb() )
 		   { write_handler($write); }
@@ -640,7 +810,7 @@ sub read_socket
 			 }
 		   else {
 		        #if( $! ) { print "Read doesn't exist: $!\n"; }
-			    login();
+			    login("notfirsttime");
 			    }
 		   }
 		 }
@@ -649,6 +819,7 @@ sub read_socket
 ### Prints user login data and calls user_code 25 to create a sprite, then checks if that users ihash exists
 ### in stalk or antistalk and if so, the id is added
 ### Issues:
+### - Put $userdata->set_hex_rgb() in $userdata->set_data()
 ### - Argument "" isn't numeric at 528
 sub print_data
     {
@@ -656,12 +827,14 @@ sub print_data
     my($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = $userdata->get_data($id);
 	if( $name ne $userdata->get_name($id) )
 	  { ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = $userdata->get_data($id); }
-    $scl       = $scl == 100 ? "right" : "left";
+	$userdata->set_hex_rgb($r, $g, $b, $id);
+    $scl       = $scl eq "100" ? "right" : "left";
 	$trip      = $trip =~ /trip="(.{10})"/ ? " $1 " : " ";
-	$enteruser = $enteruser eq "ENTER" ? " has logged in\n" : "\n";
-	#print_output("id: $id, status: $status, character: $character\n");
-    print_output("$name$trip$ihash ($id) $status $character x$x $scl$enteruser");
+	$enteruser = $enteruser eq "ENTER" ? " has logged in" : "";
+    print_output("USERDATA", "USERCOLOR", $userdata->get_hex_rgb($id), $name, $trip, $ihash, $id, $status,
+	             $character, $x, $scl, $enteruser);
 	
+	$roomid{$id} = 1;
 	if( $ENABLE_GRAPHIC_INTERFACE )
 	  {
 	  $eventsemaphore->down();
@@ -683,11 +856,16 @@ sub write_handler
 	if   ( $write eq "REENTER"    )  { enter_room("reenter"); }
 	elsif( $write eq "SETXYSCL"   )  { send_x_y_scl($writesocketqueue->dequeue()); }
 	elsif( $write =~ /(^SEARCH.*)/ ) { search($1); }
+	elsif( $write eq "SHUTUP" )
+	     { for my $counter (1..9) { print $remote "<RSET cmd=\"go\" param=\"$counter\" />\0"; } }
 	else {
 	     if( $write !~ />$/ or $write eq "MojaChat" )
 		   { $write .= $writesocketqueue->dequeue(); }
 		 if( $select->can_write() )
-		   { print $remote "$write\0"; }
+		   {
+		   chomp($write);
+		   print $remote "$write\0";
+		   }
 		 }
 	}
 
@@ -703,7 +881,7 @@ sub write_handler
 ### Signals:
 ### - +connect id="ID"          : Sent when you connect to the server
 ### - <CONNECT id="ID" />       : Same
-### - <ROOM>, <ROOM />, </ROOM> : Room count
+### - <ROOM>, <ROOM />, </ROOM> : Room count ?/When you enter the room/When sending the rooms user list
 ### - <USER|ENTER r="RED" name="NAME" id="ID" trip="TRIP" ihash="IHASH" stat|status="STATUS" g="GREEN"
 ###   type="CHARACTER" b="BLUE" y="Y" x="X" scl="SCL" /> :
 ###   Login data, login when someone enters the room, user when someone is already in
@@ -726,28 +904,31 @@ sub read_handler
 	          {
               my($id) = $1;
 	          $logindata->set_id($id);
-	          print_output("Logged in, id=$id\n\n");
+	          print_output("LOGIN", "Logged in, id=$id\n\n");
               }
 		 elsif( $read[0] =~ /<ENTER id="(.+?)" \/>/ )
-	          { print_output("User with id $1 entered this room\n"); }          
+	          {
+			  $roomid{$1} = 1;
+			  print_output("ENTER", "User with id $1 entered this room\n");
+			  }
 	     elsif( $read[0] =~ /<UINFO name="(.*?)" id="(\d{1,3})" \/>/ )
 	          {
 	          if( $logindata->get_room2() eq "main" )                           
-	            { print_output("$1 id=$2\n"); }                                 
+	            { print_output("ROOM", "$1 id=$2\n"); }                                 
 	          }
 	     elsif( $read[0] eq "<ROOM>" )
-	          { $logindata->get_room2() eq "main" ? print_output("Users in this room: ") : undef; }
+	          { $logindata->get_room2() eq "main" ? print_output("ROOM", "Users in this room: ") : undef; }
 	     elsif( $read[0] eq "<ROOM />" ) {} ### Sent when you exit the room
 	     elsif( $read[0] =~ /<ROOM c="(.+?)" n="(.+?)" \/>/ ) ### There is a necessity for this one?
-	          { if( $1 != "0" ) { print_output("room $2 persons $1\n"); } }
+	          { if( $1 != "0" ) { print_output("ROOM", "room $2 persons $1\n"); } }
 	     elsif( $read[0] eq "</ROOM>" ) {} ### Sent when sending the room user list
 		 elsif( $read[0] =~ /<COUNT>/ )
 	          {
-	          print_output("Rooms:\n");
+	          print_output("ROOM", "Rooms:\n");
 	          while( $read[0] !~ /<\/COUNT>/ )
 	               {
 	               if( $read[0] =~ /<ROOM c="(.+?)" n="(.+?)" \/>/ )
-				     { print_output("room $2 persons $1\n"); }
+				     { print_output("ROOM", "room $2 persons $1\n"); }
 				   shift(@read);
 	               }
 	          }
@@ -755,9 +936,10 @@ sub read_handler
 	     #elsif( $read[0] =~ /<COUNT \/>/ ) {} ### Is this necessary?
 	     elsif( $read[0] =~ /<COUNT c="(.+?)" n="(.+?)"\s?\/?>/ )
 	          {
-			  print_output("room $2 persons $1\n");
+			  print_output("ROOM", "room $2 persons $1\n");
 			  $eventdata{room}    = $2;
 			  $eventdata{persons} = $1;
+			  $window->Text("Monachat [room: $2 persons: $1]");
 			  if( $ENABLE_GRAPHIC_INTERFACE ) { push_event(24); }
 			  }
 	     elsif( $read[0] =~ m/<(\w{4,5})\s r="(.*?)"\s name="(.*?)"\s id="(\d{1,3})"(.+?)ihash="(.{10})".+
@@ -768,8 +950,9 @@ sub read_handler
 	          {
 			  my($status, $id) = ($1, $2);
 			  my($name) = $userdata->get_name($id);
+			  my($hexrgb) = $userdata->get_hex_rgb($id);
 			  $userdata->set_status($status, $id);
-			  print_output("$name changed his status to $status\n");
+			  print_output("CHANGE", "USERCOLOR", $hexrgb, "$name changed his status to $status\n");
 			  if( $ENABLE_GRAPHIC_INTERFACE ) { push_event(24); }
 	          }
 	     elsif( $read[0] =~ /<SET x="(.*?)" scl="(.*?)" id="(\d{1,3})" y="(.*?)" \/>/ )
@@ -777,21 +960,22 @@ sub read_handler
 	          my($x, $scl, $id, $y) = ($1, $2, $3, $4);
 			  my($loginid)          = $logindata->get_id();
               my($name)             = $userdata->get_name($id);
+			  my($hexrgb)           = $userdata->get_hex_rgb($id);
 	          if( $userdata->get_x($id) != $x )
 	            {
 	            $userdata->set_x($x, $id);
-	            print_output("$name moved to x $x\n");
+	            if(!$option{nomovedata}) { print_output("CHANGE", "USERCOLOR", $hexrgb, "$name moved to x $x\n"); }
                 }
 	          if( $userdata->get_y($id) != $y )
 	            {
 	            $userdata->set_y($y, $id);
-	            print_output("$name moved to y $y\n");
+	            if(!$option{nomovedata}) { print_output("CHANGE", "USERCOLOR", $hexrgb, "$name moved to y $y\n"); }
                 }
 	          if( $userdata->get_scl($id) != $scl )
 	            {
 	            $userdata->set_scl($scl, $id);
 				$scl = $scl == 100 ? "right" : "left";
-	            print_output("$name moved to $scl\n");
+	            if(!$option{nomovedata}) { print_output("CHANGE", "USERCOLOR", $hexrgb, "$name moved to $scl\n"); }
 				#$eventdata{flip} = 1;
                 }
 			  if( $ENABLE_GRAPHIC_INTERFACE ) { push_event(27, $id); }
@@ -815,21 +999,32 @@ sub read_handler
 			  my($ignoreihash, $stat, $id) = ($1, $2, $3);
 			  my($name, undef, undef, undef, $ihash) = $userdata->get_data($id);
 			  my($ignorename, $ignoreid) = $userdata->get_data_by_ihash($ignoreihash);
-			  print_output("ignoreid: $ignoreid\n");
 			  $userdata->set_ignore($ignoreihash, $stat, $id);
 			  my($ignore) = $userdata->get_ignore($ignoreihash, $id) ? "ignored" : "stopped ignoring";
-	          print_output("$name $ihash ($id) $ignore $ignorename $ignoreihash ($ignoreid)\n");
+			  my($hexrgb, $ignorehexrgb) = ($userdata->get_hex_rgb($id), $userdata->get_hex_rgb($ignoreid));
+	          print_output("IGNORE", "USERCOLOR", $hexrgb, $name, $ihash, $id, $ignore,
+			               $ignorehexrgb, $ignorename, $ignoreihash, $ignoreid);
 	          
-			  if( $option{antiignore} and ($option{antiignoreall} or $userdata->get_antiignore($id)) )
-			    { kill("STOP"); }
+			  if( ($option{antiignore} and $userdata->get_antiignore($id)) or $option{antiignoreall} )
+			    { login("notfirsttime"); }
 	          }
+		 elsif( $read[0] =~ /<RSET cmd="go" param="(.+)" id="(\d{1,3})" \/>/ )
+		      {
+			  my($hexrgb) = $userdata->get_hex_rgb($2);
+			  print_output("RSET", "USERCOLOR", $hexrgb, "SAITAMA SAITAMA ($1) ($2)\n");
+			  }
 	     elsif( $read[0] eq "<EXIT />" )
-	          { print_output("You exited the room\n" ); }
+	          {
+			  print_output("EXIT", "You exited the room\n" );
+			  %roomid = ();
+			  }
 	     elsif( $read[0] =~ /<EXIT id="(.+?)" \/>/ )
 	          {
               my($id)    = $1;
 			  my($name, undef, undef, undef, $ihash) = $userdata->get_data($id);
-	          print_output("$name $ihash ($id) exited this room\n");
+			  my($hexrgb) = $userdata->get_hex_rgb($id);
+	          print_output("EXIT", "USERCOLOR", $hexrgb, "$name $ihash ($id) exited this room\n");
+			  delete $roomid{$id};
 			  if( $ENABLE_GRAPHIC_INTERFACE ) { push_event(26, $id); }
 	          }
 	     elsif( $read[0] =~ /<COM cmt="(.+?)" (.+?) \/>/ ) ### There are three comment patterns
@@ -840,28 +1035,42 @@ sub read_handler
               my($comment) = $1;
               my($id)      = $2 =~ /id="(.+)"/;
 			  my($name, undef, undef, $trip, $ihash) = $userdata->get_data($id);
+			  my($usercolor) = $userdata->get_hex_rgb($id);
 	          $trip = $trip ? " $trip " : " ";
-	          print_output("$name$trip$ihash ($id): $comment\n");
+			  my($second, $minute, $hour) = localtime(time());
+			  $second = $second =~ /^\d$/ ? "0$second" : $second;
+			  $minute = $minute =~ /^\d$/ ? "0$minute" : $minute;
+			  $hour   = $hour   =~ /^\d$/ ? "0$hour"   : $hour;
+			  my($date) = "[$hour:$minute:$second]";
+			  my($line) = "$date $name$trip$ihash ($id): $comment";
+			  #$line .= " " x (70 - length($line)).$date;
+	          print_output("COMMENT", "USERCOLOR", $usercolor, $date, $name, $trip, $ihash, $id, $comment);
 	          
 			  if ( $option{stalk} and $userdata->get_stalk($id) )
 	             {
-	             $comment = encode("cp932", $comment);
+	             $comment = encode("utf8", $comment);
 	             $writesocketqueue->enqueue("<COM cmt=\"$comment\" />");
 	             }
-			  if( $option{alarm} )
+			  if( $option{popup} )
 			    {
-				foreach my $trigger (@alarmtrigger)
-				        {
-						if( $comment =~ /$trigger/ )
-						  { print "\a"; }
-						  #{ Win32::Sound::Play(); }
-						}
-				}
+				chomp($line);
+				$line = substr($line, 11);
+				$line = encode("cp932", $line);
+			  	foreach my $trigger (@popuptrigger)
+			  	        {
+						chomp($trigger);
+			  			if( $comment =~ /$trigger/i )
+			  			  {
+						  $notifyicon->Change("-balloon_tip", $line);
+						  $notifyicon->ShowBalloon();
+						  }
+			  			}
+			  	}
 	          }
 	     elsif( $read[0] eq "Connection timeout.." )
 	          {
-	          print_output("Connection timeout...\n");
-	          login();
+	          print_output("NOTIFICATION", "Connection timeout...\n");
+	          login("notfirsttime");
 	          }
 	     elsif( $read[0] =~ /^<R|^<USER/ ) ### For fixing broken signals
 	          {
@@ -869,14 +1078,14 @@ sub read_handler
 	          if   ( $line !~ />$/ )
 	               { $line = $line . ">"; }
 	          if   ( $line =~ /<ROOM c="(.+?)" n="(.+?)" \/>/ )
-	               { if( $1 != 0 ) { print_output("room $2 persons $1\n"); } }
+	               { if( $1 != 0 ) { print_output("ROOM", "room $2 persons $1\n"); } }
 	          elsif( $line =~ m/<(\w{4,5})\s r="(.*?)"\s name="(.*?)"\s id="(.*?)"(.+?)ihash="(.{10})".+
 			                   \w{4,6}="(.*?)"\s g="(.*?)"\s type="(.*?)"\s b="(.*?)"\s y="(.*?)"\s
 							   x="(.*?)"\s scl="(.*?)"\s \/>/x )
 	               { $userdata->set_data($3, $4, $9, $7, $5, $6, $2, $8, $10, $12, $11, $13); print_data($1, $4); }
-	          else { print_output("$line\n"); }
+	          else { print_output("UNKNOWN", "$line\n"); }
 	          }
-         else { print_output("$read[0]\n"); }
+         else { print_output("UNKNOWN", "$read[0]\n"); }
 	     shift(@read);
 	     }
 	}
@@ -1070,6 +1279,36 @@ sub sdl_window
 	$window->run();
 	}
 
+share(%argument);          ### Command line arguments
+share(%option);            ### Options of things too small to own their own variables
+share(%socketdata);        ### The default ip and port address
+share(%proxy);             ### Proxy options
+share(%roomid);
+share(%eventdata);         ### Shared global variable for the SDL event loop
+share(@proxyaddr);         ### List of ip addresses retrieved by get_proxy_list()
+share(@proxyport);         ### List of ip ports retrieved by get_proxy_list()
+share(@inputline);         
+share(@popuptrigger);      ### List of strings that trigger an allarm
+share($inputcounter);
+
+get_argument();
+
+### Get config file, profiles not currently implemented,
+### maybe encode/decode messes with japanese windows
+open(CONFIG, "<:encoding(cp932)", "config.txt") or die "Couldn't open config file: $!\n";
+for my $line (<CONFIG>)
+     {
+	 chomp($line);
+	 if( $line =~ /^(.+) = (.+)$/ )
+	   {
+	   my($option, $parameter) = ($1, $2);
+	   $parameter = (!$parameter or $parameter eq "\"\"") ? undef : $parameter;
+	   if( $option eq "trigger" ) { @popuptrigger = split(/ : /, $parameter); }
+	   else { $config{$option} = $parameter; }
+	   }
+	 }
+close(CONFIG);
+
 ### Creates the main Win32::GUI window
 ### Issues:
 ### - $outputfield->GetAutoURLDetect not working
@@ -1079,6 +1318,16 @@ $window = Win32::GUI::Window->new(
   -title  => "Monachat",
   -height => 320,
   -width  => 620 );
+if( $config{popup} )
+  {
+  $taskbaricon = Win32::GUI::Icon->new("GUIPERL.ICO");
+  $notifyicon = $window->AddNotifyIcon(
+    -icon            => $taskbaricon,
+    -name            => "NotifyIcon",
+    -tip             => "Monachat",
+    -balloon         => 1,
+    -balloon_timeout => 4 );
+  }
 $inputfield = $window->AddTextfield(
   -name        => "Inputfield",
   -height      => 30,
@@ -1098,36 +1347,22 @@ $outputfield = $window->AddRichEdit(
   -autovscroll => 1 );
 $inputfield->SetLimitText(50);
 $outputfield->SetCharFormat( -name => "MS Shell Dlg" );
-$outputfield->GetAutoURLDetect();
+$outputfield->SetTextMode(1, 1);
+$outputfield->AutoURLDetect();
+$outputfield->SetBkgndColor($config{backgroundcolor});
 $inputfield->SetFocus();
 $window->Center();
 $window->Show();
 
-share(%argument);          ### Command line arguments
-share(%option);            ### Options of things too small to own their own variables
-share(%socketdata);       ### The default ip and port address
-share(%proxy);             ### Proxy options 
-share(%eventdata);         ### Shared global variable for the SDL event loop
-share(@proxyaddr);         ### List of ip addresses retrieved by get_proxy_list()
-share(@proxyport);         ### List of ip ports retrieved by get_proxy_list()
-share(@alarmtrigger);      ### List of strings that trigger an allarm
-
-get_argument();
-
-### Get config file, profiles not currently implemented,
-### maybe encode/decode messes with japanese windows
-open(CONFIG, "<", "config.txt");
-for my $line (<CONFIG>)
-     {
-	 if( $line =~ /(^.+) = (.+$)/ )
-	   {
-	   my($option, $parameter) = ($1, $2 eq "\"\"" ? undef : $2);
-	   $parameter = decode("cp932", $parameter);
-	   $parameter = encode("utf8" , $parameter);
-	   $config{$option} = $parameter;
-	   }
-	 }
-close(CONFIG);
+#$image = Imager->new();
+#$image->read( file => "test.png" );
+#$image->flip(dir=>"h");
+#$image->write( file => $image );
+#$scaledimage = $image->scaleX(pixels => 180)->scaleY(pixels => 180);
+#$scaledimage->flood_fill(x => 90, y => 90, color => [255, 255, 0, 0]);
+#$scaledimage->write( file => "test1.png" );
+#$pixel = $scaledimage->getpixel( x => 90, y => 90 );
+#die "pixel: $pixel\n";
 
 ### $logindata only stores initial login data
 $logindata = Userdata->new_login_data(
@@ -1146,13 +1381,17 @@ $logindata = Userdata->new_login_data(
 ### $userdata stores all user data, including own
 $userdata =  Userdata->new_user_data();
 %socketdata = (
-  address => $argument{address}||"153.122.46.192",
-  port    => $argument{port}||9095 );
+  address => $argument{address}||$config{address}||"153.122.46.192",
+  port    => $argument{port}||$config{port}||9095 );
 %proxy = (
-  on      => $argument{proxy}||0,
-  timeout => $argument{timeout}||2,
-  debug   => $argument{debug}||1,
-  skip    => $argument{skip}||0 );
+  on      => $argument{proxy}||$config{proxy}||0,
+  timeout => $argument{timeout}||$config{timeout}||1,
+  debug   => $argument{debug}||$config{debug}||0,
+  skip    => $argument{skip}||0,
+  version => $config{socksversion}||4 );
+%option = (
+  nomovedata => 0,
+  popup      => $config{popup}||0 );
 
 ### $pingsemaphore:    Used to restart the ping thread
 ### $eventsemaphore:   Used to prevent %eventdata being accessed before SDL event handler uses them
