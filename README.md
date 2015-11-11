@@ -1,5 +1,124 @@
-# Monachat-Perl-Client
-Monachat Perl Client
+# Monachat Perl Client
+
+
+#Monachat Perl Client(MPC)とは
+
+MPCはアノニミティーと使いやすさを考えて作られたもなちゃとのパールポートです。
+* アノニミティーとはなんぞ？<br>
+もなちゃとで名前を変えてもクライアントを使っている人たちに認識されてしまう、そのために本当の名無しおになるためにプロクシー機能が入っている、つまり、入るまいにIP、そしてトリップが変わる。<br><br>
+
+* 使いやすさってなんぞ？<br>
+   もなちゃとは人が少ない、その上に時間帯によって人数がかなり変わるから何度も部屋を出てどこに人がいるのかを見回す必要があると思うあなたに:<br>
+   簡単に検索できサーチ機能。<br>
+   あれ？この人は前話したことあまったく覚えていない。。。と思うあなたに:<br> ＭＰＣはトリップを自動的にファイルに保存しているから誰もが前に使った名前が確かめれる機能。<br>
+   ユーザーデータを変えたいけど毎回ログイン画面に戻るのはだるいと思うあなに:<br> 簡単にユーザーデータが変更できるコマンド。<br>
+   キャラクタープレイをするのが好きだけど毎回毎回名前とキャラを変えるのは疲れると思うあなたに:<br> プロファイル入れ替え機能。
+   目が悪いあなたに: バックグラウンドと文字の色が変更でき機能。<br>
+   ぐへへ。。。ねこたそちゃんかわいいよねこたそちゃん。。。と思うあなたに:<br> 簡単にほかのユーザーのデータをコピーしたり発言を繰り返したり追いかけたりできる機能。<br>
+   もなちゃとでユーザーが少ないからいつも見ていられるのがだるいと思うあなたに:<br> 誰かがあなたが選んだ言葉を発言すればシステムポップアップが出る機能。<br><br>
+
+とかいろいろ作成中。
+
+
+#インストールする方法
+
+MPCをインストールするにはパールをインストール必要がある、ネットにはいろんな無料なソフトがあるからこっちでは説明しないが検索すればすぐに出てくる。
+
+パールをインストールすれば最初から入っていないモジュールがあるのでそのモジュールをインストールする必要がある。
+そうするにはcmdに入って:
+
+```
+cpan
+install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
+```
+
+を入力すればそのモジュールがインストールされる。
+
+#コマンドリスト
+
+* /name (名前):<br>
+名前を変更する。
+* /character (キャラクター):<br>
+キャラクターを変更する。
+* /stat (状態):<br>
+状態を変更しする。
+* /x (横):<br>
+横を変更しする。
+* /y (縦):<br>
+縦を変更しする。
+* /move (x横 y縦):<br>
+横と縦を変更しする。
+* /rgb (R G B):<br>
+色をR（赤）G（緑）B（青）に変更する。
+* /scl:<br>
+向きを変更しする。
+* /ignore (ID):<br>
+そっぽ見ういてIDを無視しする。ただしログ内ではまだ見える、名無しさん心が狭いです。
+* /antiignore (on|off|ID):<br>
+IDに無視されたら再ログインする。あまり使いすぎると怒こられちゃうぞ。
+* /stalk (on|off|ID) [nomove]:<br>
+自動的にIDの発言を繰り返してIDが移動すれば追いつく。
+   nomove: 発言だけを繰り返す。
+* /antistalk (on|off|ID):<br>
+stalkの逆、誰かに追いつけられてれば自動的に移動する。
+* /search (main|all|user USER) [print]:<br>
+   main: メインでユーザーがいる部屋を検索する。<br>
+   all: メインで検索してからそれぞれのユーザーがいた部屋を検索する。<br>
+   user: そしてUSERがその部屋にいれば止まる。<br>
+   print: ログにプリントする代わりにコメントする。<br>
+* /newinstance [here] [NUMBER]:<br>
+Monachat Perl Clientの新しいインスタンスを起動する。
+  here: 現在いる部屋に新しいインスタンスを起動する。
+  number: NUMBER回繰り返す。
+* /reenter:<br>
+部屋に入りなおす。
+* /relogin [skip NUMBER]:<br>
+ログアウトしてもなちゃとにつながりなおす。
+   skip: 接続に成功すれば、NUMBER回繰り返す。問題がある特定のプロクシーがあれば次のプロクシーに移動できる。
+* /disconnect:<br>
+もなちゃとを強制的に切断させる、何度もやればBANになる可能性がある注意。
+* /copy (ID):<br>
+IDのデータをコピーして部屋に入りなおす。
+* /invisible:<br>
+透明になる
+* /default:<br>
+元のログインデータに戻る。
+* /clear (screen|userdata):<br>
+   screen: ログを削除する。
+   userdata: $userdataを削除する。
+* /nomovedata (on|off): <br>
+   他のユーザーが動いてもログに出ない。
+* /shutup: <br>
+さいたまさいたま
+* /popup (on|off|TRIGGER):<br>
+ポップアップトリガーのリストにTRIGGERを追加する。
+* /open:<br>
+グラフィカルインターフェースを開く。
+* /close:<br>
+グラフィカルインターフェースを閉じる。
+* /backgroundcolor (#XXXXXX):<br>
+バックグラウンドの色を#XXXXXXに変更する。
+* /getname (IHASH|ID):<br>
+trip.txtでIHASHを検索する。
+* /addname (ID) (NAME):<br>
+trip.txtでIDのihashにNAMEを追加する
+* /getroom:<br>
+現在ルームにいるユーザーを見せる。
+* /save [NAME]:<br>
+今のログをLOG/NAMEに保存する、NAMEがなければ現在いる部屋の番号か名前にデフォルトする。
+* /exit:<br>
+Monachat Perl Clientを出る
+
+#ライセンス
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+
+#作者
+
+American man...
+バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。<br><br><br><br>
+
 
 
 #What is Monachat Perl Client?
@@ -158,122 +277,4 @@ This program is free software: you can redistribute it and/or modify it under th
 #Author
 
 American man...
-For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).<br><br><br><br>
-
-
-
-#Monachat Perl Client(MPC)とは
-
-MPCはアノニミティーと使いやすさを考えて作られたもなちゃとのパールポートです。
-* アノニミティーとはなんぞ？
-もなちゃとで名前を変えてもクライアントを使っている人たちに認識されてしまう、そのために本当の名無しおになるためにプロクシー機能が入っている、つまり、入るまいにIP、そしてトリップが変わる。
-* 使いやすさってなんぞ？
-   もなちゃとは人が少ない、その上に時間帯によって人数がかなり変わるから何度も部屋を出てどこに人がいるのかを見回す必要があると思うあなたに: 簡単に検索できサーチ機能。
-   あれ？この人は前話したことあまったく覚えていない。。。と思うあなたに: ＭＰＣはトリップを自動的にファイルに保存しているから誰もが前に使った名前が確かめれる
-   ユーザーデータを変えたいけど毎回ログイン画面に戻るのはだるいと思うあなに: 簡単にユーザーデータが変更できるコマンド。
-   キャラクタープレイをするのが好きだけど毎回毎回名前とキャラを変えるのは疲れると思うあなたに: プロファイル入れ替え機能。
-   目が悪いあなたに: バックグラウンドと文字の色が変更でき機能。
-   ぐへへ。。。ねこたそちゃんかわいいよねこたそちゃん。。。と思うあなたに: 簡単にほかのユーザーのデータをコピーしたり発言を繰り返したり追いかけたりできる機能。
-   もなちゃとでユーザーが少ないからいつも見ていられるのがだるいと思うあなたに: 誰かがあなたが選んだ言葉を発言すればシステムポップアップが出る機能
-
-とかいろいろ作成中。
-
-
-#インストールする方法
-
-MPCをインストールするにはパールをインストール必要がある、ネットにはいろんな無料なソフトがあるからこっちでは説明しないが検索すればすぐに出てくる。
-
-パールをインストールすれば最初から入っていないモジュールがあるのでそのモジュールをインストールする必要がある。
-そうするにはcmdに入って:
-
-```
-cpan
-install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
-```
-
-を入力すればそのモジュールがインストールされる。
-
-#コマンドリスト
-
-* /name (名前):<br>
-名前を変更する。
-* /character (キャラクター):<br>
-キャラクターを変更する。
-* /stat (状態):<br>
-状態を変更しする。
-* /x (横):<br>
-横を変更しする。
-* /y (縦):<br>
-縦を変更しする。
-* /move (x横 y縦):<br>
-横と縦を変更しする。
-* /rgb (R G B):<br>
-色をR（赤）G（緑）B（青）に変更する。
-* /scl:<br>
-向きを変更しする。
-* /ignore (ID):<br>
-そっぽ見ういてIDを無視しする。ただしログ内ではまだ見える、名無しさん心が狭いです。
-* /antiignore (on|off|ID):<br>
-IDに無視されたら再ログインする。あまり使いすぎると怒こられちゃうぞ。
-* /stalk (on|off|ID) [nomove]:<br>
-自動的にIDの発言を繰り返してIDが移動すれば追いつく。
-   nomove: 発言だけを繰り返す。
-* /antistalk (on|off|ID):<br>
-stalkの逆、誰かに追いつけられてれば自動的に移動する。
-* /search (main|all|user USER) [print]:<br>
-   main: メインでユーザーがいる部屋を検索する。<br>
-   all: メインで検索してからそれぞれのユーザーがいた部屋を検索する。<br>
-   user: そしてUSERがその部屋にいれば止まる。<br>
-   print: ログにプリントする代わりにコメントする。<br>
-* /newinstance [here] [NUMBER]:<br>
-Monachat Perl Clientの新しいインスタンスを起動する。
-  here: 現在いる部屋に新しいインスタンスを起動する。
-  number: NUMBER回繰り返す。
-* /reenter:<br>
-部屋に入りなおす。
-* /relogin [skip NUMBER]:<br>
-ログアウトしてもなちゃとにつながりなおす。
-   skip: 接続に成功すれば、NUMBER回繰り返す。問題がある特定のプロクシーがあれば次のプロクシーに移動できる。
-* /disconnect:<br>
-もなちゃとを強制的に切断させる、何度もやればBANになる可能性がある注意。
-* /copy (ID):<br>
-IDのデータをコピーして部屋に入りなおす。
-* /invisible:<br>
-透明になる
-* /default:<br>
-元のログインデータに戻る。
-* /clear (screen|userdata):<br>
-   screen: ログを削除する。
-   userdata: $userdataを削除する。
-* /nomovedata (on|off): <br>
-   他のユーザーが動いてもログに出ない。
-* /shutup: <br>
-さいたまさいたま
-* /popup (on|off|TRIGGER):<br>
-ポップアップトリガーのリストにTRIGGERを追加する。
-* /open:<br>
-グラフィカルインターフェースを開く。
-* /close:<br>
-グラフィカルインターフェースを閉じる。
-* /backgroundcolor (#XXXXXX):<br>
-バックグラウンドの色を#XXXXXXに変更する。
-* /getname (IHASH|ID):<br>
-trip.txtでIHASHを検索する。
-* /addname (ID) (NAME):<br>
-trip.txtでIDのihashにNAMEを追加する
-* /getroom:<br>
-現在ルームにいるユーザーを見せる。
-* /save [NAME]:<br>
-今のログをLOG/NAMEに保存する、NAMEがなければ現在いる部屋の番号か名前にデフォルトする。
-* /exit:<br>
-Monachat Perl Clientを出る
-
-#ライセンス
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-
-#作者
-
-American man...
-バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。
+For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).
