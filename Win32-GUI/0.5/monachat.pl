@@ -28,16 +28,16 @@ close(CONFIG);
 
 if( $ENABLE_GRAPHIC_INTERFACE ) ### Doesn't work, modules are loaded at compile time
   {
-  use SDL;
-  use SDL::Surface;
-  use SDL::Video;
-  use SDL::Color;
-  use SDL::Event;
-  use SDL::Events;
-  use SDLx::App;
-  use SDLx::Rect;
-  use SDLx::Sprite;
-  use SDLx::Text;
+  #use SDL;
+  #use SDL::Surface;
+  #use SDL::Video;
+  #use SDL::Color;
+  #use SDL::Event;
+  #use SDL::Events;
+  #use SDLx::App;
+  #use SDLx::Rect;
+  #use SDLx::Sprite;
+  #use SDLx::Text;
   }
 
 ### Write the date everytime the program is executed
