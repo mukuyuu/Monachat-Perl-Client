@@ -1,7 +1,7 @@
-use strict;
-no strict "vars"; ### Because of continous global variable errors
-use warnings;
-use diagnostics;
+#use strict;
+#no strict "vars"; ### Because of continous global variable errors
+#use warnings;
+#use diagnostics;
 use Socket;
 use IO::Socket;
 use IO::Socket::Socks;
