@@ -531,7 +531,7 @@ sub print_list
 	     {
 		 my($color) = shift(@arguments)||"#000000";
 		 my($text)  = shift(@arguments)||"";
-		 #$text = encode("cp932", $text);
+		 $text = encode("cp932", $text);
 		 $outputfield->Select("-1", "-1");
 		 $outputfield->SetCharFormat(-color => $color);
 		 $outputfield->ReplaceSel($text);
