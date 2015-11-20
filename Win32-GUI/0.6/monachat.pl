@@ -82,6 +82,7 @@ open(MESSAGE, "<:encoding(cp932)", "language/$LNGCODE.txt") or die "Couldn't ope
 @message = <MESSAGE>;
 close(MESSAGE);
 @message = map(/^.+?= (.+)\n$/, @message);
+foreach (keys @message) { @message[$_] = decode("cp932", @message[$_]); }
 
 ($NAMETOOLARGE, $STATTOOLARGE, $STALKON, $STALKID, $ANTISTALKON, $ANTISTALKID, $PROXYON, $ANTIIGNOREON,
  $ANTIIGNOREID, $MUTEON, $MUTTED, $UNMUTTED, $ROOMINFOON, $POPUPON, $DEBUGON, $TRIPERROR, $TRIPNOTFOUND,
