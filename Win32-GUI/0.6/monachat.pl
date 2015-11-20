@@ -484,7 +484,7 @@ sub command_handler
 		 my($trip)   = $search =~ /^(\d{1,3})$/ ? $userdata->get_ihash($1) : $search||"";
 		 if( $trip =~ /.{10}/ )
 		   {
-		   open(TRIP, "<:encoding($ENCODING)", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and last;
+		   open(TRIP, "<", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and last;
 		   for my $line (<TRIP>)
 		       {
 			   if( $line =~ /^\Q$trip\E/ )
@@ -520,7 +520,7 @@ sub command_handler
 		 my($second, $minute, $hour, $day, $month, $year) = localtime(time());
 		 my($filename) = "[$day-$month-$year ".$second."s".$minute."m".$hour."h"."] $name.txt";
 		 if( !-e "/LOG" ) { system("mkdir LOG"); }
-		 open(CHATLOG, ">:encoding($ENCODING)", "LOG/$filename") or print_output("ERROR", eval($SAVELOGERROR));
+		 open(CHATLOG, ">", "LOG/$filename") or print_output("ERROR", eval($SAVELOGERROR));
 		 print CHATLOG $text;
 		 close(CHATLOG);
 		 print_output("NOTIFICATION", eval($SAVELOG)) if -e "LOG/$filename";
@@ -913,7 +913,7 @@ sub trip_store
 		 my($name) = $tripqueue->dequeue();
 	     if( !-e "trip.txt" )
 		   {
-		   open(TRIP, ">:encoding(UTF-8)", "trip.txt") or die "Couldn't create trip.txt\n";
+		   open(TRIP, ">", "trip.txt") or die "Couldn't create trip.txt\n";
 		   print TRIP "$ihash : $name";
 		   }
 		 else {
@@ -935,7 +935,7 @@ sub trip_store
 				      elsif( !$trip[$line + 1] ) { push(@trip, "$ihash : $name"); }
 			          }
 			  ### And prints @trip into trip.txt
-	          open(TRIP, ">:encoding(UTF-8)", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and redo;
+	          open(TRIP, ">", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and redo;
 	          chomp(@trip);
 			  if( $trip[0] eq "" or $trip[0] eq " " or !$trip[0] ) # if( $trip[0] !~ /^.{10}/ )
 			    {
