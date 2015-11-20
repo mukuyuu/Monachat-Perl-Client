@@ -1304,11 +1304,11 @@ sub read_handler
 				$line = substr($line, 11);
 				$line = encode("cp932", $line);
 			  	
-				if($option{popupall})
-				  {
-				  $notifyicon->Change("-balloon_tip", $line);
-				  $notifyicon->ShowBalloon();
-				  }
+				if   ($option{popupall})
+				     {
+				     $notifyicon->Change("-balloon_tip", $line);
+				     $notifyicon->ShowBalloon();
+				     }
 				else {
 				     foreach my $trigger (@popuptrigger)
 			  	       {
@@ -1557,7 +1557,7 @@ get_argument();
 
 ### Get config file, profiles not currently implemented,
 ### maybe encode/decode messes with japanese windows
-open(CONFIG, "<:encoding(cp932)", "config.txt") or die "Couldn't open config file: $!\n";
+open(CONFIG, "<:encoding($ENCODING)", "config.txt") or die "Couldn't open config file: $!\n";
 for my $line (<CONFIG>)
      {
 	 chomp($line);
