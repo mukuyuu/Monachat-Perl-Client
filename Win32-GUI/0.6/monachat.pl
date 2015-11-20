@@ -72,17 +72,17 @@ $SIG{__DIE__}  = sub {
 ### Load language settings and messages
 $LOCALE = POSIX::setlocale(LC_COLLATE);
 ($LANGUAGE,   $LNGCODE)   = $LOCALE   =~ /japan/i   ? ("japanese", "jp")   : ("english", "en");
-$LANGUAGE = "japanese"; #
+$LANGUAGE = "japanese";
+$LNGCODE = "jp";
 ($LOGINSPACE, $ROOMSPACE) = $LANGUAGE eq "japanese" ? (" " x 73, " " x 90) : (" " x 82, " " x 87);
 #$DECODEFROM          = $LOCALE =~ /japan/i ? "utf8"  : "utf8";
 #$ENCODETO            = $LOCALE =~ /japan/i ? "utf8"  : "cp932";
 
-$LNGCODE = "jp";
 open(MESSAGE, "<:encoding(cp932)", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
 @message = <MESSAGE>;
 close(MESSAGE);
 @message = map(/^.+?= (.+)\n$/, @message);
-foreach (keys @message) { @message[$_] = decode("cp932", @message[$_]); }
+#foreach (keys @message) { $message[$_] = decode("cp932", $message[$_]); }
 
 ($NAMETOOLARGE, $STATTOOLARGE, $STALKON, $STALKID, $ANTISTALKON, $ANTISTALKID, $PROXYON, $ANTIIGNOREON,
  $ANTIIGNOREID, $MUTEON, $MUTTED, $UNMUTTED, $ROOMINFOON, $POPUPON, $DEBUGON, $TRIPERROR, $TRIPNOTFOUND,
@@ -531,7 +531,7 @@ sub print_list
 	     {
 		 my($color) = shift(@arguments)||"#000000";
 		 my($text)  = shift(@arguments)||"";
-		 $text = encode("cp932", $text);
+		 $text = encode("shift-jis", $text);
 		 $outputfield->Select("-1", "-1");
 		 $outputfield->SetCharFormat(-color => $color);
 		 $outputfield->ReplaceSel($text);
@@ -723,6 +723,8 @@ sub enter_room
 	if   ( $logindata->get_room2() eq "main" )
 	     { print $remote "<ENTER room=\"$room\" name=\"$name\" attrib=\"$attrib\" />\0"; }
     else {
+	     ### Wide character in print at 728
+	     no warnings;
 	     if   ( $trip eq "" )
 		      {
 		      print $remote
