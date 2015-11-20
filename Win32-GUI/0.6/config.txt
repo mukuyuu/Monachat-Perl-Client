@@ -9,6 +9,7 @@ b = 100
 x = ""
 y = ""
 scl = 100
+attrib = no
 room1 = MONA8094
 room2 = main
 [GRAPHIC OPTIONS]
@@ -21,11 +22,12 @@ mute = 0
 [SOCKET OPTIONS]
 address = 153.122.46.192
 port = 9095
-proxy = off
+proxy = no
 timeout = 0.4
 debug = 1
 change = 0
 socksversion = 4
 [POPUP OPTIONS]
-popup = 0
+savetrip = yes
+popup = 1
 trigger = 名無しさん : 名無し
