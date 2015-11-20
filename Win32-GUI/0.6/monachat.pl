@@ -78,7 +78,7 @@ $LNGCODE = "jp";
 #$DECODEFROM          = $LOCALE =~ /japan/i ? "utf8"  : "utf8";
 #$ENCODETO            = $LOCALE =~ /japan/i ? "utf8"  : "cp932";
 
-open(MESSAGE, "<:encoding(cp932)", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
+open(MESSAGE, "<", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
 @message = <MESSAGE>;
 close(MESSAGE);
 @message = map(/^.+?= (.+)\n$/, @message);
