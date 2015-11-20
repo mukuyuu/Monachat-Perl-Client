@@ -17,7 +17,15 @@ use LWP::UserAgent;
 use POSIX qw(LC_COLLATE);
 use Userdata;
 
-open(CONFIG, "<", "config.txt") or die "Couldn't open config.txt.";
+### Load locale and sets locale global variables
+$LOCALE = POSIX::setlocale(LC_COLLATE);
+($LANGUAGE, $LNGCODE, $ENCODING) = $LOCALE =~ /japan/i ? ("japanese", "jp", "UTF-8") : ("english", "en", "cp932");
+#$LANGUAGE = "japanese";
+#$LNGCODE  = "jp";
+#$ENCODING = "UTF-8";
+($LOGINSPACE, $ROOMSPACE) = $LANGUAGE eq "japanese" ? (" " x 73, " " x 90) : (" " x 82, " " x 87);
+
+open(CONFIG, "<:encoding($ENCODING)", "config.txt") or die "Couldn't open config.txt.";
 for my $line (<CONFIG>)
     {
 	if( $line =~ /^graphicinterface = (\d)$/ )
@@ -69,16 +77,7 @@ $SIG{__DIE__}  = sub {
   close(LOG);
   };
 
-### Load language settings and messages
-$LOCALE = POSIX::setlocale(LC_COLLATE);
-($LANGUAGE, $LNGCODE, $ENCODING) = $LOCALE =~ /japan/i ? ("japanese", "jp", "UTF-8") : ("english", "en", "cp932");
-#$LANGUAGE = "japanese";
-#$LNGCODE  = "jp";
-#$ENCODING = "UTF-8";
-($LOGINSPACE, $ROOMSPACE) = $LANGUAGE eq "japanese" ? (" " x 73, " " x 90) : (" " x 82, " " x 87);
-#$DECODEFROM          = $LOCALE =~ /japan/i ? "utf8"  : "utf8";
-#$ENCODETO            = $LOCALE =~ /japan/i ? "utf8"  : "cp932";
-
+### Load language file
 open(MESSAGE, "<:encoding($ENCODING)", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
 @message = <MESSAGE>;
 close(MESSAGE);
@@ -485,7 +484,7 @@ sub command_handler
 		 my($trip)   = $search =~ /^(\d{1,3})$/ ? $userdata->get_ihash($1) : $search||"";
 		 if( $trip =~ /.{10}/ )
 		   {
-		   open(TRIP, "<", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and last;
+		   open(TRIP, "<:encoding($ENCODING)", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and last;
 		   for my $line (<TRIP>)
 		       {
 			   if( $line =~ /^\Q$trip\E/ )
@@ -521,7 +520,7 @@ sub command_handler
 		 my($second, $minute, $hour, $day, $month, $year) = localtime(time());
 		 my($filename) = "[$day-$month-$year ".$second."s".$minute."m".$hour."h"."] $name.txt";
 		 if( !-e "/LOG" ) { system("mkdir LOG"); }
-		 open(CHATLOG, ">", "LOG/$filename") or print_output("ERROR", eval($SAVELOGERROR));
+		 open(CHATLOG, ">:encoding($ENCODING)", "LOG/$filename") or print_output("ERROR", eval($SAVELOGERROR));
 		 print CHATLOG $text;
 		 close(CHATLOG);
 		 print_output("NOTIFICATION", eval($SAVELOG)) if -e "LOG/$filename";
@@ -914,7 +913,7 @@ sub trip_store
 		 my($name) = $tripqueue->dequeue();
 	     if( !-e "trip.txt" )
 		   {
-		   open(TRIP, ">", "trip.txt") or die "Couldn't create trip.txt\n";
+		   open(TRIP, ">:encoding(UTF-8)", "trip.txt") or die "Couldn't create trip.txt\n";
 		   print TRIP "$ihash : $name";
 		   }
 		 else {
@@ -936,7 +935,7 @@ sub trip_store
 				      elsif( !$trip[$line + 1] ) { push(@trip, "$ihash : $name"); }
 			          }
 			  ### And prints @trip into trip.txt
-	          open(TRIP, ">", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and redo;
+	          open(TRIP, ">:encoding(UTF-8)", "trip.txt") or print_output("ERROR", eval($TRIPERROR)) and redo;
 	          chomp(@trip);
 			  if( $trip[0] eq "" or $trip[0] eq " " or !$trip[0] ) # if( $trip[0] !~ /^.{10}/ )
 			    {
