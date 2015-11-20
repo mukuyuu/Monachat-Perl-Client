@@ -71,14 +71,15 @@ $SIG{__DIE__}  = sub {
 
 ### Load language settings and messages
 $LOCALE = POSIX::setlocale(LC_COLLATE);
-($LANGUAGE,   $LNGCODE)   = $LOCALE   =~ /japan/i   ? ("japanese", "jp")   : ("english", "en");
-$LANGUAGE = "japanese";
-$LNGCODE = "jp";
+($LANGUAGE, $LNGCODE, $ENCODING) = $LOCALE =~ /japan/i ? ("japanese", "jp", "UTF-8") : ("english", "en", "cp932");
+#$LANGUAGE = "japanese";
+#$LNGCODE  = "jp";
+#$ENCODING = "UTF-8";
 ($LOGINSPACE, $ROOMSPACE) = $LANGUAGE eq "japanese" ? (" " x 73, " " x 90) : (" " x 82, " " x 87);
 #$DECODEFROM          = $LOCALE =~ /japan/i ? "utf8"  : "utf8";
 #$ENCODETO            = $LOCALE =~ /japan/i ? "utf8"  : "cp932";
 
-open(MESSAGE, "<:encoding(UTF-8)", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
+open(MESSAGE, "<:encoding($ENCODING)", "language/$LNGCODE.txt") or die "Couldn't open $LANGUAGE language file.\n";
 @message = <MESSAGE>;
 close(MESSAGE);
 @message = map(/^.+?= (.+)\n$/, @message);
@@ -441,6 +442,11 @@ sub command_handler
 		   $option{popup} = $1 eq "on" ? 1 : 0;
 		   print_output("NOTIFICATION", eval($POPUPON));
 		   }
+		 elsif( $1 eq "all" )
+		      {
+			  $option{popup}    = 1;
+			  $option{popupall} = 1;
+			  }
 		 else {
 		      $option{popup} = 1;
 			  push(@popuptrigger, $1);
@@ -1298,14 +1304,21 @@ sub read_handler
 				$line = substr($line, 11);
 				$line = encode("cp932", $line);
 			  	
-				foreach my $trigger (@popuptrigger)
-			  	  {
-			  	  if( $comment =~ /$trigger/i )
-			  		{
-					$notifyicon->Change("-balloon_tip", $line);
-					$notifyicon->ShowBalloon();
-					}
-			  	  }
+				if($option{popupall})
+				  {
+				  $notifyicon->Change("-balloon_tip", $line);
+				  $notifyicon->ShowBalloon();
+				  }
+				else {
+				     foreach my $trigger (@popuptrigger)
+			  	       {
+			  	       if( $comment =~ /$trigger/i )
+			  		     {
+					     $notifyicon->Change("-balloon_tip", $line);
+					     $notifyicon->ShowBalloon();
+					     }
+					   }
+			  	     }
 			  	}
 	          }
 	     elsif( $read[0] eq "Connection timeout.." )
