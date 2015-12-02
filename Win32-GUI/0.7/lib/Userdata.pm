@@ -2,23 +2,22 @@ package Userdata;
 use threads;
 use threads::shared qw(shared_clone);
 
-sub ID_NAME         { $id."name"      }
-sub ID_CHARACTER    { $id."character" }
-sub ID_STATUS       { $id."status"    }
-sub ID_TRIP         { $id."trip"      }
-sub ID_IHASH        { $id."ihash"     }
-sub ID_R            { $id."r"         }
-sub ID_G            { $id."g"         }
-sub ID_B            { $id."b"         }
-sub ID_HEX_RGB      { $id."hexrgb"    }
-sub ID_X            { $id."x"         }
-sub ID_Y            { $id."y"         }
-sub ID_SCL          { $id."scl"       }
-
-sub STALK_IHASH     { "stalk".$self->get_ihash($id)     }
-sub ANTISTALK_IHASH { "antistalk".$self->get_ihash($id) }
-sub ID_IGNORE_IHASH { $id."ignore".$ihash               }
-sub ID_ANTIIGNORE   { $id."antiignore"                  }
+$ID_NAME         = '$id."name"';
+$ID_CHARACTER    = '$id."character"';
+$ID_STATUS       = '$id."status"';
+$ID_TRIP         = '$id."trip"';
+$ID_IHASH        = '$id."ihash"';
+$ID_R            = '$id."r"';
+$ID_G            = '$id."g"';
+$ID_B            = '$id."b"';
+$ID_HEX_RGB      = '$id."hexrgb"';
+$ID_X            = '$id."x"';
+$ID_Y            = '$id."y"';
+$ID_SCL          = '$id."scl"';
+$STALK_IHASH     = '"stalk".$self->get_ihash($id)';
+$ANTISTALK_IHASH = '"antistalk".$self->get_ihash($id)';
+$ID_IGNORE_IHASH = '$id."ignore".$ihash';
+$ID_ANTIIGNORE   = '$id."antiignore"';
 
 sub new_login_data {
     my $class = shift;
@@ -51,37 +50,37 @@ sub new_user_data
 sub set_name
     {
     my($self, $name, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_NAME} = $name if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_NAME)} = $name if $id =~ /^\d{1,3}$/;
     }
 
 sub get_name
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_NAME} : $self->{name};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_NAME)} : $self->{name};
     }
 
 sub set_status
     {
     my($self, $status, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_STATUS} = $status if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_STATUS)} = $status if $id =~ /^\d{1,3}$/;
     }
 
 sub get_status
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_STATUS} : $self->{status};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_STATUS)} : $self->{status};
     }
 
 sub set_character
     {
     my($self, $character, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_CHARACTER} = $character if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_CHARACTER)} = $character if $id =~ /^\d{1,3}$/;
     }
 
 sub get_character
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_CHARACTER} : $self->{character};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_CHARACTER)} : $self->{character};
     }
 
 sub set_id
@@ -99,25 +98,25 @@ sub get_id
 sub set_trip
     {
     my($self, $trip, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $id =~ /^\d{1,3}$/ ? $self->{ID_TRIP} = $trip : $self->{trip} = $trip;
+    $id =~ /^\d{1,3}$/ ? $self->{eval($ID_TRIP)} = $trip : $self->{trip} = $trip;
     }
 
 sub get_trip
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_TRIP} : $self->{trip};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_TRIP)} : $self->{trip};
     }
 
 sub set_ihash
     {
     my($self, $ihash, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_IHASH} = $ihash if $id =~ /^\d{|,3}$/;
+    $self->{eval($ID_IHASH)} = $ihash if $id =~ /^\d{|,3}$/;
     }
 
 sub get_ihash
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    if( $id =~ /^\d{1,3}$/ ) { return $id ? $self->{ID_IHASH} : $self->{ihash}; }
+    if( $id =~ /^\d{1,3}$/ ) { return $id ? $self->{eval($ID_IHASH)} : $self->{ihash}; }
     }
 
 sub set_room
@@ -147,53 +146,53 @@ sub get_room2
 sub set_r
     {
     my($self, $r, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_R} = $r if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_R)} = $r if $id =~ /^\d{1,3}$/;
     }
 
 sub get_r
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_R} : $self->{r};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_R)} : $self->{r};
     }
 
 sub set_g
     {
     my($self, $g, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_G} = $g if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_G)} = $g if $id =~ /^\d{1,3}$/;
     }
 
 sub get_g
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_G} : $self->{g};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_G)} : $self->{g};
     }
 
 sub set_b
     {
     my($self, $b, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_B} = $b if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_B)} = $b if $id =~ /^\d{1,3}$/;
     }
 
 sub get_b
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_B} : $self->{b};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_B)} : $self->{b};
     }
 
 sub set_rgb
     {
     my($self, $r, $g, $b, $id) = ($_[0], $_[1]||"", $_[2]||"", $_[3]||"", $_[4]||"");
     return if $id !~ /^\d{1,3}$/;
-    $self->{ID_R} = $r;
-    $self->{ID_G} = $g;
-    $self->{ID_B} = $b;
+    $self->{eval($ID_R)} = $r;
+    $self->{eval($ID_G)} = $g;
+    $self->{eval($ID_B)} = $b;
     }
 
 sub get_rgb
     {
     my($self, $id) = ($_[0], $_[1]||"");
     $id =~ /^\d{1,3}$/ ?
-      return($self->{ID_R}, $self->{ID_G}, $self->{ID_B}) :
+      return($self->{eval($ID_R)}, $self->{eval($ID_G)}, $self->{eval($ID_B)}) :
       return($self->{r}, $self->{g}, $self->{b});
     }
 
@@ -214,65 +213,65 @@ sub set_hex_rgb
     $r = unpack("H2", pack("c", $r));
     $g = unpack("H2", pack("c", $g));
     $b = unpack("H2", pack("c", $b));
-    $self->{ID_HEX_RGB} = "#".$r.$g.$b;
+    $self->{eval($ID_HEX_RGB)} = "#".$r.$g.$b;
     }
 
 sub get_hex_rgb
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_HEX_RGB} : $self->{hexrgb};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_HEX_RGB)} : $self->{hexrgb};
     }
 
 sub set_x
     {
     my($self, $x, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_X} = $x if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_X)} = $x if $id =~ /^\d{1,3}$/;
     }
 
 sub get_x
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_X} : $self->{x};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_X)} : $self->{x};
     }
 
 sub set_y
     {
     my($self, $y, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_Y} = $y if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_Y)} = $y if $id =~ /^\d{1,3}$/;
     }
 
 sub get_y
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_Y} : $self->{y};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_Y)} : $self->{y};
     }
 
 sub set_scl
     {
     my($self, $scl, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    $self->{ID_SCL} = $scl if $id =~ /^\d{1,3}$/;
+    $self->{eval($ID_SCL)} = $scl if $id =~ /^\d{1,3}$/;
     }
 
 sub get_scl
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $id =~ /^\d{1,3}$/ ? $self->{ID_SCL} : $self->{scl};
+    return $id =~ /^\d{1,3}$/ ? $self->{eval($ID_SCL)} : $self->{scl};
     }
 
 sub set_x_y_scl
     {
     my($self, $x, $y, $scl) = ($_[0], $_[1]||"", $_[2]||"", $_[3]||"");
     return if $id !~ /^\d{1,3}$/;
-    $self->{ID_X}   = $x;
-    $self->{ID_Y}   = $y;
-    $self->{ID_SCL} = $scl;
+    $self->{eval($ID_X)}   = $x;
+    $self->{eval($ID_Y)}   = $y;
+    $self->{eval($ID_SCL)} = $scl;
     }
 
 sub get_x_y_scl
     {
     my($self, $id) = ($_[0], $_[1]||"");
     $id =~ /^\d{1,3}$/ ?
-      return($self->{ID_X}, $self->{ID_Y}, $self->{ID_SCL}) :
+      return($self->{eval($ID_X)}, $self->{eval($ID_Y)}, $self->{eval($ID_SCL)}) :
       return($self->{x}, $self->{y}, $self->{scl});
     }
 
@@ -291,25 +290,25 @@ sub get_attrib
 sub set_stalk
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    if( $id =~ /^\d{1,3}$/ ) { $self->{STALK_IHASH} = $self->{STALK_IHASH} ? 0 : 1; }
+    if( $id =~ /^\d{1,3}$/ ) { $self->{eval($STALK_IHASH)} = $self->{eval($STALK_IHASH)} ? 0 : 1; }
     }
 
 sub get_stalk
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $self->{STALK_IHASH} if $id =~ /^\d{1,3}$/;
+    return $self->{eval($STALK_IHASH)} if $id =~ /^\d{1,3}$/;
     }
 
 sub set_antistalk
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    if( $id =~ /^\d{1,3}$/ ) { $self->{ANTISTALK_IHASH} = $self->{ANTISTALK_IHASH} ? 0 : 1; }
+    if( $id =~ /^\d{1,3}$/ ) { $self->{eval($ANTISTALK_IHASH)} = $self->{eval($ANTISTALK_IHASH)} ? 0 : 1; }
     }
 
 sub get_antistalk
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $self->{ANTISTALK_IHASH} if $id =~ /^\d{|.3}$/;
+    return $self->{eval($ANTISTALK_IHASH)} if $id =~ /^\d{|.3}$/;
     }
 
 sub set_ignore
@@ -317,25 +316,25 @@ sub set_ignore
     my($self, $ihash, $stat, $id) = ($_[0], $_[1]||"", $_[2]||"", $_[3]||"");
     return if $id !~ /^\d{1,3}$/ or $ihash !~ /^.{10}$/;
     $stat = $stat eq "on"  ? 1 : $stat eq "off" ? 0 : "";
-    $self->{ID_IGNORE_IHASH} = $stat;
+    $self->{eval($ID_IGNORE_IHASH)} = $stat;
     }
 
 sub get_ignore
     {
     my($self, $ihash, $id) = ($_[0], $_[1]||"", $_[2]||"");
-    return $self->{ID_IGNORE_IHASH} if $id =~ /^\d{1,3}$/ and $ihash =~ /^.{10}$/;
+    return $self->{eval($ID_IGNORE_IHASH)} if $id =~ /^\d{1,3}$/ and $ihash =~ /^.{10}$/;
     }
 
 sub set_antiignore
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    if( $id =~ /^\d{1,3}$/ ) { $self->{ID_ANTIIGNORE} = $self->{ID_ANTIIGNORE} ? 0 : 1; }
+    if( $id =~ /^\d{1,3}$/ ) { $self->{eval($ID_ANTIIGNORE)} = $self->{eval($ID_ANTIIGNORE)} ? 0 : 1; }
     }
 
 sub get_antiignore
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $self->{ID_ANTIIGNORE} if $id =~ /^\d{1,3}$/;
+    return $self->{eval($ID_ANTIIGNORE)} if $id =~ /^\d{1,3}$/;
     }
 
 sub set_data {
@@ -344,35 +343,35 @@ sub set_data {
        $_[8]||0, $_[9]||0, $_[10]||"", $_[11]||"", $_[12]||"");
     
     return if $id !~ /^\d{1,3}$/;
-    $self->{ID_NAME}      = $name;
-    $self->{ID_CHARACTER} = $character;
-    $self->{ID_STATUS}    = $status;
-    $self->{ID_TRIP}      = $trip;
-    $self->{ID_IHASH}     = $ihash;
-    $self->{ID_R}         = $r;
-    $self->{ID_G}         = $g;
-    $self->{ID_B}         = $b;
-    $self->{ID_HEX_RGB}   = $self->set_hex_rgb($r, $g, $b, $id);
-    $self->{ID_X}         = $x;
-    $self->{ID_Y}         = $y;
-    $self->{ID_SCL}       = $scl;
+    $self->{eval($ID_NAME)}      = $name;
+    $self->{eval($ID_CHARACTER)} = $character;
+    $self->{eval($ID_STATUS)}    = $status;
+    $self->{eval($ID_TRIP)}      = $trip;
+    $self->{eval($ID_IHASH)}     = $ihash;
+    $self->{eval($ID_R)}         = $r;
+    $self->{eval($ID_G)}         = $g;
+    $self->{eval($ID_B)}         = $b;
+    $self->{eval($ID_HEX_RGB)}   = $self->set_hex_rgb($r, $g, $b, $id);
+    $self->{eval($ID_X)}         = $x;
+    $self->{eval($ID_Y)}         = $y;
+    $self->{eval($ID_SCL)}       = $scl;
 }
 
 sub get_data {
     my($self, $id) = ($_[0], $_[1]||"");
     if ( $id =~ /^\d{1,3}$/ ) {
         return(
-            $self->{ID_NAME},
-            $self->{ID_CHARACTER},
-            $self->{ID_STATUS},
-            $self->{ID_TRIP},
-            $self->{ID_IHASH},
-            $self->{ID_R},
-            $self->{ID_G},
-            $self->{ID_B},
-            $self->{ID_X},
-            $self->{ID_Y},
-            $self->{ID_SCL}
+            $self->{eval($ID_NAME)},
+            $self->{eval($ID_CHARACTER)},
+            $self->{eval($ID_STATUS)},
+            $self->{eval($ID_TRIP)},
+            $self->{eval($ID_IHASH)},
+            $self->{eval($ID_R)},
+            $self->{eval($ID_G)},
+            $self->{eval($ID_B)},
+            $self->{eval($ID_X)},
+            $self->{eval($ID_Y)},
+            $self->{eval($ID_SCL)}
         );
     }
     else {
@@ -400,7 +399,7 @@ sub get_data_by_ihash {
     return if $ihash !~ /^.{10}$/;
     
     for my $id (1..300) {
-        if( $self->{ID_IHASH} eq $ihash )
+        if( $self->{eval($ID_IHASH)} eq $ihash )
           { return($self->get_name($id), $id); }
     }
 }
