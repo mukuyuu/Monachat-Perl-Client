@@ -20,7 +20,6 @@ use POSIX qw(LC_COLLATE);
 use lib "lib";
 use Userdata;
 use Language;
-use EroHon;
 
 ### Load locale
 $LOCALE = POSIX::setlocale(LC_COLLATE);
@@ -587,21 +586,6 @@ sub command_handler
          }
     elsif( $command =~ /\/backgroundcolor (.+)/ )
          { $outputfield->SetBkgndColor($1); }
-    elsif( $command =~ /erohon (.+)/ )
-         {
-         if( -e "lib/erohon.pm" )
-           {
-           my($search, $request, $rate, $page, $english, $comment, $totalresult) = ($1, "", 2, 0, 0, "", "");
-           $rate    = $search =~ /-rate (\d)/    ? $1 : $rate;
-           $page    = $search =~ /-page (\d)/    ? $1 : $page;
-           $english = $search =~ /-english/      ? 1  : $english;
-           $request = $search =~ /(.+?) (-rate|-page|-english)/ ? $1 : $search;
-           
-           ($comment, $totalresult) = EroHon::get_ehentai_random($request, $rate, $page, $english);
-           print_output("NOTIFICATION", "request: $request, found: $totalresult.\n");
-           $writesocketqueue->enqueue("COMMENT", $comment) if $comment;
-           }
-         }
     elsif( $command =~ /\/getname (.{1,10})/ )
          {
          my($search, $match) = ($1, "");
