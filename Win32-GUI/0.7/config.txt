@@ -12,6 +12,34 @@ scl = 100
 attrib = no
 room1 = MONA8094
 room2 = main
+[PROFILE 1]
+p1name = 名無しさん
+p1character = mona
+p1status = 通常
+p1trip = ""
+p1r = 100
+p1g = 100
+p1b = 100
+p1x = ""
+p1y = ""
+p1scl = 100
+p1attrib = no
+p1room1 = MONA8094
+p1room2 = main
+[PROFILE 2]
+p2name = 名無しさん
+p2character = mona
+p2status = 通常
+p2trip = ""
+p2r = 100
+p2g = 100
+p2b = 100
+p2x = ""
+p2y = ""
+p2scl = 100
+p2attrib = no
+p2room1 = MONA8094
+p2room2 = main
 [GRAPHIC OPTIONS]
 graphicinterface = 0
 [COLOR OPTIONS]
