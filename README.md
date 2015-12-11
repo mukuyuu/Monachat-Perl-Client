@@ -122,25 +122,25 @@ trip.txtでIDのihashにNAMEを追加する
 Monachat Perl Clientを出る。
 
 #コンフィグファイル
-*[LOGIN DATA]:<br>
-普通のログインデータのコンフィグ。
-*[PROFILE N]:<br>
-[LOGIN DATA]と同じだが、パラメターの前にp1, p2, p3...がついている、いくつでも作成出来る。
-*[GRAPHIC OPTIONS]:<br>
+[LOGIN DATA]:<br>
+普通のログインデータのコンフィグ。<br><br>
+[PROFILE N]:<br>
+[LOGIN DATA]と同じだが、パラメターの前にp1, p2, p3...がついている、いくつでも作成出来る。<br><br>
+[GRAPHIC OPTIONS]:<br>
 graphicinterface = (0|1) : グラフィックインターフをオン、オフにする、この機能を使用するにはＳＤＬをインストールする必要がある。
-*[COLOR OPTIONS]:<br>
-backgroundcolor = #RRGGBB: バックグランドの色を設定。
-*[LOG OPTIONS]
-roominfo = (0|1): 人が出るまいにいちいち部屋の情報が表示されるかされないかを設定、デフォルトは０。
-*[SOCKET OPTIONS]
+[COLOR OPTIONS]:<br>
+backgroundcolor = #RRGGBB: バックグランドの色を設定。<br><br>
+[LOG OPTIONS]<br>
+roominfo = (0|1): 人が出るまいにいちいち部屋の情報が表示されるかされないかを設定、デフォルトは０。<br><br>
+[SOCKET OPTIONS]<br>
 address = (IP): もなちゃとのデフォルトIPアドレス。<br>
 port  = (PORT): 入口のポート。<br>
 proxy = (yes|no): プロクシーをオン、オフにする。<br>
 timeout = (n): タイアウトを設定する、プロクシーがどうしても見つからない場合はちょっと上げると見つかるかも、デフォルトは0.4。<br>
 debug = (yes|no): デバッグモードをオン、オフにする。大体信号が表示されるだけ。<br>
 change = (0|1): 再ログインするまいにIPが変わるかを設定、デフォルトは0。<br>
-socksversion = (4|5): SOCKSバージョンを設定する、デフォルトは4。
-*[CLIENT OPTIONS]
+socksversion = (4|5): SOCKSバージョンを設定する、デフォルトは4。<br><br>
+[CLIENT OPTIONS]<br>
 language = (english|japanese): 言語を設定する、デフォルトは日本語。<br>
 savetrip = (yes|no): トリップ保存機能をオン、オフにする、デフォルトは0。<br>
 savelog = (0|1): もなちゃとを閉じればログが保存されるかを設定する、デフォルトは0.<br>
@@ -155,4 +155,4 @@ This program is free software: you can redistribute it and/or modify it under th
 #作者
 
 American man...
-バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。<br><br><br><br>
+バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。
