@@ -122,13 +122,13 @@ trip.txtでIDのihashにNAMEを追加する
 Monachat Perl Clientを出る。
 
 #コンフィグファイル
-[LOGIN DATA]:<br>
+\[LOGIN DATA]:<br>
 普通のログインデータのコンフィグ。<br><br>
-[PROFILE N]:<br>
+\[PROFILE N]:<br>
 [LOGIN DATA]と同じだが、パラメターの前にp1, p2, p3...がついている、いくつでも作成出来る。<br><br>
-[GRAPHIC OPTIONS]:<br>
+\[GRAPHIC OPTIONS]:<br>
 graphicinterface = (0|1) : グラフィックインターフをオン、オフにする、この機能を使用するにはＳＤＬをインストールする必要がある。
-[COLOR OPTIONS]:<br>
+\[COLOR OPTIONS]:<br>
 backgroundcolor = #RRGGBB: バックグランドの色を設定。<br><br>
 [LOG OPTIONS]<br>
 roominfo = (0|1): 人が出るまいにいちいち部屋の情報が表示されるかされないかを設定、デフォルトは０。<br><br>
