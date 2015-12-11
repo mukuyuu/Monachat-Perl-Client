@@ -7,9 +7,9 @@ use utf8;
 
 my $LANGUAGE = "main::LANGUAGE";
 my ($name, $id, $trip, $ihash, $status, $x, $y, $scl, $room, $log, $filename, $command, $option,
- $roomswithusers, $minute, $second) =
+ $roomswithusers, $mute, $minute, $second) =
 ("main::name", "main::id", "main::trip", "main::ihash", "main::status", "main::x", "main::y", "main::scl",
- "main::room", "main::log", "main::filename", "main::command", "main::option", "main::roomswithusers",
+ "main::room", "main::log", "main::filename", "main::command", "main::option", "main::roomswithusers", "main::mute",
  "main::minute", "main::second");
 my $error = "main::!";
 my $roomdata = "main::roomdata";
@@ -65,14 +65,28 @@ sub MUTE_ON {
     undef;
 }
 sub MUTE_ID {
-    $$LANGUAGE eq "english"  ? "id $1 has been mutted.\n" :
-    $$LANGUAGE eq "japanese" ? "ID $1がミュートされた。\n" :
-    undef;
+    if( $$mute{$$id} ) {
+        $$LANGUAGE eq "english"  ? "id: $$id has been mutted.\n" :
+        $$LANGUAGE eq "japanese" ? "ID $$id がミュートされた。\n" :
+        undef;
+    }
+    else {
+        $$LANGUAGE eq "english"  ? "id: $$id has been unmutted.\n" :
+        $$LANGUAGE eq "japanese" ? "ID $$id がミュート解除された。\n" :
+        undef;
+    }
 }
-sub UNMUTE_ID {
-    $$LANGUAGE eq "english"  ? "id $1 has been unmutted.\n" :
-    $$LANGUAGE eq "japanese" ? "ID $1がミュート解除された。\n" :
-    undef;
+sub MUTE_COMMENT_ID {
+    if( $$mute{"com$$id"} ) {
+        $$LANGUAGE eq "english"  ? "comments from id: $$id have been mutted.\n" :
+        $$LANGUAGE eq "japanese" ? "ID: $$id のコメントがミュートされました。\n" :
+        undef;
+    }
+    else {
+        $$LANGUAGE eq "english"  ? "comments from id: $$id have been unmutted.\n" :
+        $$LANGUAGE eq "japanese" ? "ID: $$id のコメントがミュート解除されました。\n" :
+        undef;
+    }
 }
 sub ROOMINFO_ON {
     $$LANGUAGE eq "english"  ? "Room information $1\n" :
