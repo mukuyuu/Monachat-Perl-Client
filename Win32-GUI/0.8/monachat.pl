@@ -667,6 +667,7 @@ sub command_handler
          $result = substr($result, 0, -2);
          
          ### Print result
+         $name = decode("utf8", $name);
          print_output("SEARCH", "$name: $result\n");
          search_trip($_) foreach (@result);
          }
