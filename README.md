@@ -44,6 +44,8 @@ install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
 キャラクターを変更する。
 * /stat (状態):<br>
 状態を変更しする。
+* /trip (トリップ):<br>
+トリップをつける、トリップを消すには入りなおす必要がある。
 * /x (横):<br>
 横を変更しする。
 * /y (縦):<br>
@@ -63,11 +65,10 @@ IDに無視されたら再ログインする。あまり使いすぎると怒こ
    nomove: 発言だけを繰り返す。
 * /antistalk (on|off|ID):<br>
 stalkの逆、誰かに追いつけられてれば自動的に移動する。
-* /search (main|all|user USER) [print]:<br>
+* /search (main|all|user USER):<br>
    main: メインでユーザーがいる部屋を検索する。<br>
    all: メインで検索してからそれぞれのユーザーがいた部屋を検索する。<br>
    user: そしてUSERがその部屋にいれば止まる。<br>
-   print: ログにプリントする代わりにコメントする。<br>
 * /newinstance [here] [NUMBER]:<br>
 Monachat Perl Clientの新しいインスタンスを起動する。
   here: 現在いる部屋に新しいインスタンスを起動する。
@@ -88,10 +89,15 @@ IDのデータをコピーして部屋に入りなおす。
 * /clear (screen|userdata):<br>
    screen: ログを削除する。
    userdata: $userdataを削除する。
-* /nomovedata (on|off): <br>
-   他のユーザーが動いてもログに出ない。
+* /mute (on|off|ID|com ID): <br>
+   コメント以外に他のユーザーの行動が見えない。<br>
+   com: そのユーザーのコメントが見えなくなるする（ただ画面に出ないだけで、無視はされない）。
+* /profile (1,2,3...)
+   プロファイルを変更して入りなおす。
+* /end
+   スクロールと問題がある場合はこのコマンドでログの最後まで行ける。
 * /shutup: <br>
-さいたまさいたま。
+さいたまさいたまー。
 * /popup (on|off|TRIGGER):<br>
 ポップアップトリガーのリストにTRIGGERを追加する。
 * /open:<br>
@@ -100,16 +106,46 @@ IDのデータをコピーして部屋に入りなおす。
 グラフィカルインターフェースを閉じる。
 * /backgroundcolor (#XXXXXX):<br>
 バックグラウンドの色を#XXXXXXに変更する。
+* /language:<br>
+言語を変更する（英語と日本語）。
 * /getname (IHASH|ID):<br>
 trip.txtでIHASHを検索する。
+* /gettrip (IHASH|ID|name ID):<br>
+getnameの逆、そのユーザーネームのトリップを検索して、またgetnameと同じように画面に表示する。
 * /addname (ID) (NAME):<br>
 trip.txtでIDのihashにNAMEを追加する
 * /getroom:<br>
-現在ルームにいるユーザーを見せる。
+ルームにいるユーザーが表示される。
 * /save [NAME]:<br>
 今のログをLOG/NAMEに保存する、NAMEがなければ現在いる部屋の番号か名前にデフォルトする。
 * /exit:<br>
-Monachat Perl Clientを出る
+Monachat Perl Clientを出る。
+
+#コンフィグファイル
+*[LOGIN DATA]:<br>
+普通のログインデータのコンフィグ。
+*[PROFILE N]:<br>
+[LOGIN DATA]と同じだが、パラメターの前にp1, p2, p3...がついている、いくつでも作成出来る。
+*[GRAPHIC OPTIONS]:<br>
+graphicinterface = (0|1) : グラフィックインターフをオン、オフにする、この機能を使用するにはＳＤＬをインストールする必要がある。
+*[COLOR OPTIONS]:<br>
+backgroundcolor = #RRGGBB: バックグランドの色を設定。
+*[LOG OPTIONS]
+roominfo = (0|1): 人が出るまいにいちいち部屋の情報が表示されるかされないかを設定、デフォルトは０。
+*[SOCKET OPTIONS]
+address = (IP): もなちゃとのデフォルトIPアドレス。<br>
+port  = (PORT): 入口のポート。<br>
+proxy = (yes|no): プロクシーをオン、オフにする。<br>
+timeout = (n): タイアウトを設定する、プロクシーがどうしても見つからない場合はちょっと上げると見つかるかも、デフォルトは0.4。<br>
+debug = (yes|no): デバッグモードをオン、オフにする。大体信号が表示されるだけ。<br>
+change = (0|1): 再ログインするまいにIPが変わるかを設定、デフォルトは0。<br>
+socksversion = (4|5): SOCKSバージョンを設定する、デフォルトは4。
+*[CLIENT OPTIONS]
+language = (english|japanese): 言語を設定する、デフォルトは日本語。<br>
+savetrip = (yes|no): トリップ保存機能をオン、オフにする、デフォルトは0。<br>
+savelog = (0|1): もなちゃとを閉じればログが保存されるかを設定する、デフォルトは0.<br>
+popup = (0|1): ポップアップ機能をオン、オフにする、デフォルトは０。<br>
+trigger = (trigger1 : trigger2 : trigger3 : trigger4...): トリガーリスト。このリストに乗っている名前を誰かが発言すればポップアップがでてくる、triggerもオンになっていないと出てこない。
 
 #ライセンス
 
@@ -120,163 +156,3 @@ This program is free software: you can redistribute it and/or modify it under th
 
 American man...
 バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。<br><br><br><br>
-
-
-
-#What is Monachat Perl Client?
-
-Monachat perl client is a port of the monachat chat program with extended capabilities and a focus in anonimity and easy of use, although for the time being it only has a text interface.
-
-
-#Install instructions
-
-To install Monachat Perl Client you need to have perl installed in your system.
-Monachat Perl Client uses various non-standard modules which can be installed from CPAN with:
-
-```
-cpan
-install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
-```
-
-
-#Command list:
-
-* /name (NAME):<br>
-Changes name to NAME.
-* /character (CHARACTER):<br>
-Changes character to CHARACTER.
-* /stat (STATUS):<br>
-Changes status to STATUS.
-* /rgb R G B
-Changes color to R G B
-* /x (X):<br>
-Moves horizontally.
-* /y (Y):<br>
-Moves vertically.
-* /move (xX yY)<br>
-Moves horizontally and vertically
-* /scl:<br>
-Changes your direction.
-* /attrib<br>
-Changes your attrib
-* /ignore (ID):<br>
-Ignores ID.
-* /antiignore (on|off|ID):<br>
-If ID ignores you, disconnects and logs in again.
-* /stalk (on|off|ID) [nomove]:<br>
-Automatically repeats al the comments and follows the provided ID across the room, with option [nomove] it just repeat the comments.
-* /antistalk (on|off|ID):<br>
-The inverse to stalk, if someone comes across you, the character automatically moves to evade being followed.
-* /search (main|all|user USER) [print]:<br>
-   main: Just has a look to the main room, then prints the user number of the rooms there are users.<br>
-   all: First searchs the main room to obtain the rooms in which there are users, then enters each room, stores the user data in every room and then prints the results.<br>
-   user : Searches for user USER across all rooms and then stops when USER is found
-   print: Instead of showing the output in the log window, sends it as comments.<br>
-* /newinstance [here] [number]:<br>
-Opens another instance of Monachat Perl Client, in the case you're using a proxy be careful of not using the same that of the first instance.
-  here: Opens another instance in the current room.
-  number: Opens NUMBER instances of Monachat Perl Client.
-* /reenter:<br>
-Exit and enters again in the same room.
-* /relogin [skip NUMBER]:<br>
-Disconnects and then log in again.
-    skip: Skips the number of successful connections by proxy NUMBER times so that if there is an issue with one proxy, it goes to the next.
-* /disconnect:<br>
-Forces the server to disconnect. Be careful with it as it can cause the server to ban you.
-* /copy (ID):<br>
-Copies all the data from ID and reenters the room.
-* /invisible:<br>
-Changes all user values to null
-* /default:<br>
-Goes back to default login data.
-* /clear (screen|userdata):<br>
-Clears log screen or all user data to free memory
-* /nomovedata (on|off): <br>
-If off, doesn't show anything about other peoples moves
-* /shutup: <br>
-SAITAMA SAITAMA
-* /popup (on|off|TRIGER):<br>
-Add TRIGGER to the list of popup triggers
-* /open:<br>
-Opens graphical interface
-* /close:<br>
-Closes graphical interface
-* /backgroundcolor (#XXXXXX):<br>
-Changes background color to hexadecimal #XXXXXX
-* /getname (IHASH|ID):<br>
-Searches trip.txt for an entry and shows it in screen
-* /addname (ID) (NAME):<br>
-Add name to the ihash of ID in trip.txt
-* /getroom:<br>
-Shows users in screen
-* /save [NAME]:<br>
-Saves the current log in LOG/NAME, if NAME is not provided, the filename is defaulted to the current room
-* /exit:<br>
-Exits Monachat Perl Client
-
-
-#Userdata class
-
-This client uses encapsulation to store and obtain user information which are stored in objects shared accross threads, which are $logindata (which stores the initial configuration of login values and is untouched across the program) and $userdata (where are stored all the user data, included your own).
-
-It is not recommended to modify directly logindata values as they could not be used to revert to the original login data.
-
-Userdata class API:
-
-In the case you are retrieving your own login data with $logindata, it is not neccesary to provide an ID to get functions.
-
-* set_name(NAME, ID) / get_name(ID) :<br>
-Takes a NAME and ID as arguments and returns a scalar containing name.
-* set_id(ID) / get_id(ID):<br>
-Takes an ID as argument and returns a scalar containing login ID.
-* set_character(CHARACTER, ID) / get_character(ID):<br>
-Takes a CHARACTER and ID as arguments and returns a scalar containing character.
-* set_status(STATUS, ID) / get_status(ID) :<br>
-Takes a STATUS and ID as arguments and returns a scalar containing status.
-* set_trip(TRIP, ID) / get_trip(ID) :<br>
-Takes a TRIP as argument and returns a scalar containing trip.
-* set_ihash(IHASH, ID) / get_ihash(ID) :<br>
-Takes an IHASH and ID as arguments and returns a scalar containing ihash.
-* set_r(R, ID) / get_r(ID) :<br>
-Takes red (R) and ID as arguments and returns a scalar containing the red color.
-* set_g(G, ID) / get_g(ID) :<br>
-Takes green (G) and ID as arguments and returns a scalar containing the green color.
-* set_b(B, ID) / get_b(ID) :<br>
-Takes blue (B) and ID as arguments and returns a scalar containing the blue color.
-* set_x(X, ID) / get_x(ID) :<br>
-Takes X and ID as arguments and returns a scalar containing horizontal position.
-* set_y(Y, ID) / get_y(ID) :<br>
-Takes Y and ID as arguments and returns a scalar containing vertical position.
-* set_scl(SCL, ID) / get_scl(ID) :<br>
-Takes a direction (SCL) and ID as arugments and returns a scalar containing direction.
-* set_attrib(ATTRIB, ID) / get_sttrib(ID) :<br>
-Takes an attribute (ATTRIB) and ID as arguments and returns a scalar containing attribute.
-* set_ignore(IHASH, ID) / get_ignore(IHASH, ID) :<br>
-Takes an IHASH and ID as arguments and returns 1 if true and 0 if false. ID is the one ignoring the IHASH.
-* set_antiignore(ID) / get_antiignore(ID) :<br>
-Takes an ID as argument and returns 1 if true and 0 if false.
-* set_stalk(ID) / get_stalk(ID) :<br>
-Takes an ID as argument and returns 1 if true and 0 if false.
-* set_antistalk(ID) / get_antistalk(ID) :<br>
-Takes an ID as argument and returns 1 if true and 0 if not.
-* set_data(NAME, ID, CHARACTER, STATUS, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB) / get_data(ID) :<br>
-Sets and returns an array containing [NAME, CHARACTER, STATUS, TRIP, IHASH, R, G, B, X, Y, SCL, ATTRIB].
-* get_data_by_ihash(IHASH) :<br>
-Returns a two-element array containing [NAME, ID] of IHASH.
-* copy(ID, TARGETID):<br>
-Takes an ID as argument and copies the data from that ID to TARGETID.
-* default(OBJECT)
-Takes a login object as an argument and copies the data.
-* invisible
-Sets all the values as undef.
-
-
-#License
-
-This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
-
-
-#Author
-
-American man...
-For bugs and sugerencies please contact with nishinishi##9999 at gmail dot com (remove the #s).
