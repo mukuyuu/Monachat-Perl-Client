@@ -69,7 +69,7 @@ stalkの逆、誰かに追いつけられてれば自動的に移動する。
    main: メインでユーザーがいる部屋を検索する。<br>
    all: メインで検索してからそれぞれのユーザーがいた部屋を検索する。<br>
    user: そしてUSERがその部屋にいれば止まる。<br>
-* /newinstance [here] [NUMBER]:<br>
+* /new [here] [NUMBER]:<br>
 Monachat Perl Clientの新しいインスタンスを起動する。
   here: 現在いる部屋に新しいインスタンスを起動する。
   number: NUMBER回繰り返す。
