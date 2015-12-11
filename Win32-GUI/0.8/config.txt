@@ -56,7 +56,8 @@ debug = 1
 change = 0
 socksversion = 4
 [POPUP OPTIONS]
+language = japanese
 savetrip = yes
-savelog = 0
+savelog = no
 popup = 1
 trigger = 名無しさん : 名無し
