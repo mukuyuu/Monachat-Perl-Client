@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    table { width: 80%; border: 0; }
+  </style>
+</head>
+
+<body>
+  <table>
+    <tr>
+      <td> <textarea id="firsttext" rows="18" cols="58">Write here.</textarea> </td>
+      <td rowspan="3"> <textarea id="thirdtext" rows="38" cols="58"></textarea> </td>
+    </tr>
+    <tr>
+      <tr><td> <textarea id="secondtext" rows="18" cols="58">Write here.</textarea> </td></tr>
+      <tr><td> <center><input type="button" onclick="merge()" value="Merge"/> </center></td><tr>
+    </tr>
+  </table>
+
+  <script>
+    function merge()
+      {
+      var match = 0;
+      var firsttextstring  = firsttext.value.match(/(.{10} : .+?)\n/g);
+      var secondtextstring = secondtext.value.match(/(.{10} : .+?)\n/g);
+      for(var string2 in secondtextstring)
+         {
+         var trip = secondtextstring[string2].substr(0, 10);
+         for(var string in firsttextstring)
+            {
+            //var trip = new RegExp("^"+trip);
+            if( firsttextstring[string].match(trip) )
+              {
+              namelist = secondtextstring[string2].substr(12).split(": ");
+              for(var name in namelist)
+                 {
+                 if( !firsttextstring[string].match(namelist[name]) )
+                   {
+                   firsttextstring[string] = firsttextstring[string].trim();
+                   namelist[name] = namelist[name].trim();
+                   var option = firsttextstring[parseInt(string) + 1] ? "\n" : "";
+                   firsttextstring[string] += " : "+namelist[name]+option;
+                   }
+                 }
+              match = 1;
+              }
+            }
+         if( match == 0 ) { firsttextstring.push(secondtextstring[string]); }
+         match = 0;
+         }
+      thirdtext.value = "";
+      for(var string in firsttextstring) { thirdtext.value += firsttextstring[string]; }
+      }
+      
+      var firsttext  = document.getElementById("firsttext");
+      var secondtext = document.getElementById("secondtext");
+      var thirdtext  = document.getElementById("thirdtext");
+      firsttext.onfocus  = function() { if( this.value == "Write here.") { this.value = ""; } return this; };
+      secondtext.onfocus = function() { if( this.value == "Write here.") { this.value = ""; } return this; };
+      firsttext.onblur   = function() { if( this.value == "" || !this.value ) { this.value = "Write here."; }; }
+      secondtext.onblur  = function() { if( this.value == "" || !this.value ) { this.value = "Write here."; }; }
+  </script>
+
+</body>
+</html>
