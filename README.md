@@ -155,4 +155,4 @@ This program is free software: you can redistribute it and/or modify it under th
 #作者
 
 American man...
-バッグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。
+バグがあればnishinishi##999 at gmail dot com（＃を消して）に連絡してください。
