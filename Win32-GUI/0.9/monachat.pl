@@ -161,10 +161,10 @@ sub ConfigButton_MouseDown
 
     $menulistview->Clear();
     
-    foreach my $key (keys %roomid)
+    foreach my $id (keys %roomid)
         {
-        $menulistview->InsertItem(-text => encode($ENCODING, $userdata->get_name($key)||"null")) if !$CONFIGMENU;
-        $roomid{$key} = $columnposition++;
+        $menulistview->InsertItem(-text => encode("cp932", $userdata->get_name($key)||"null")) if !$CONFIGMENU;
+        $roomid{$id} = $columnposition++;
         }
     
     $CONFIGMENU ? $menulistview->Hide() : $menulistview->Show();
