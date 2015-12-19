@@ -17,20 +17,27 @@ use Win32::GUI::Constants qw(EN_LINK ENM_LINK);
 use LWP::UserAgent;
 use POSIX qw(LC_COLLATE);
 
-use lib "lib";
-use Userdata;
-use Language;
-
 ### Load locale
 $LOCALE = POSIX::setlocale(LC_COLLATE);
 share($LANGUAGE);
 share($ENCODING);
 
 ### Set global configuration
+###
+### displaymode:
+###
+### Set space length
+### Display mode 1: Thought to have a good size and position but it seems not to be so in japanese windows
+### Display mode 2: Not tested
+###
 open(CONFIG, "<", "config.txt") or die "Couldn't open config.txt.";
 for my $line (<CONFIG>)
     {
+    chomp($line);
+    
     $ENABLE_GRAPHIC_INTERFACE = $1 if $line =~ /^graphicinterface = (\d)$/;
+    
+    ### Set language
     if( $line =~ /^language = (\w{7,8})$/ )
       {
       ($LANGUAGE, $ENCODING) =
@@ -41,19 +48,9 @@ for my $line (<CONFIG>)
     }
 close(CONFIG);
 
-### Set space length    
-($LOGINSPACE, $ROOMSPACE) =
-    $LANGUAGE eq "japanese" ?
-    (" " x 73, " " x 90)    :
-    (" " x 82, " " x 87);
-
-
-### SDL constants
-sub SDL_QUIT            { 12 }
-sub SDL_KEYDOWN         { 2 }
-sub SDL_MOUSEBUTTONDOWN { 6 }
-sub SDL_MOUSEBUTTONUP   { 9 }
-sub SDL_BUTTON_LEFT     { 1 }
+use lib "lib";
+use Userdata;
+use Language;
 
 if( $ENABLE_GRAPHIC_INTERFACE )
   {
@@ -93,10 +90,13 @@ $SIG{__DIE__}  = sub {
 };
 
 
+#-------------------------------------------------------------------------------------------------------------------#
+# Events                                                                                                            #
+#-------------------------------------------------------------------------------------------------------------------#
 
-#--------------------------------------------------------------------------------------------------------------------
-
-
+#-------------------------------------------------------------------------------------------------------------------#
+# Main window                                                                                                       #
+#-------------------------------------------------------------------------------------------------------------------#
 
 ### The event loop in Win32::GUI is ended when -1 is returned
 ###
@@ -132,22 +132,10 @@ sub Window_Minimize
     $window->Hide();
     }
 
-### Window move event
-###
-### Takes:
-### scalar: Window handle
-### Returns:
-### array:  Position of the window [up, down, left, right]
-###
-### Issues:
-### - Not very useful
-###
-sub Window_Move
-    {
-    my $window   = shift;
-    my @position = $window->GetWindowRect();
-    print "$position[0], $position[1], $position[2], $position[3]\n";
-    };
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Notify icon                                                                                                       #
+#-------------------------------------------------------------------------------------------------------------------#
 
 ### Show the window when the taskbar icon is clicked
 sub NotifyIcon_Click
@@ -156,19 +144,394 @@ sub NotifyIcon_Click
     $window->Show();
     }
 
-### So that inputfield never loses focus
-###
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Config button                                                                                                     #
+#-------------------------------------------------------------------------------------------------------------------#
+
+### Config button left click
+sub ConfigButton_MouseDown
+    {
+    #$listbox->SetBkColor("#AABBCC");
+    my($columnposition);
+    
+    $option{readonly} = $CONFIGMENU;
+    $inputfield->SetFocus();
+    $outputfield->Change(-readonly => $option{readonly});
+
+    $menulistview->Clear();
+    
+    foreach my $key (keys %roomid)
+        {
+        $menulistview->InsertItem(-text => encode($ENCODING, $userdata->get_name($key)||"null")) if !$CONFIGMENU;
+        $roomid{$key} = $columnposition++;
+        }
+    
+    $CONFIGMENU ? $menulistview->Hide() : $menulistview->Show();
+    $CONFIGMENU ? $window->Width($window->Width()-180) : $window->Width($window->Width()+180);
+    $CONFIGMENU = $CONFIGMENU ? 0 : 1;
+    }
+
+### Config button middle click
+sub ConfigButton_MouseMiddleDown
+    {
+    $option{readonly} = $CONFIGMENU;
+    $inputfield->SetFocus();
+    $outputfield->Change(-readonly => $option{readonly});
+    
+    $CONFIGMENU ? $logindatalistview->Hide() : $logindatalistview->Show();
+    $CONFIGMENU ? $window->Width($window->Width()-180) : $window->Width($window->Width()+180);
+    $CONFIGMENU = $CONFIGMENU ? 0 : 1;
+    }
+
+### Config button right click
+sub ConfigButton_MouseRightDown
+    {
+    $option{readonly} = $CONFIGMENU;
+    $inputfield->SetFocus();
+    $outputfield->Change(-readonly => $option{readonly});
+    
+    $CONFIGMENU ? $optionlistview->Hide() : $optionlistview->Show();
+    $CONFIGMENU ? $window->Width($window->Width()-180) : $window->Width($window->Width()+180);
+    $CONFIGMENU = $CONFIGMENU ? 0 : 1;
+    }
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Listview                                                                                                          #
+#-------------------------------------------------------------------------------------------------------------------#
+
 ### Issues:
-### - Write so that focus is recovered automatically unless outputfield is expresessly clicked
 ###
-sub Inputfield_LostFocus { $inputfield->SetFocus() if $option{readonly}; }
+### - Add end
+### - Why do dialog windows hide when clicked?
+
+#-------------------------------------------------------------------------------------------------------------------#
+# User menu                                                                                                         #
+#-------------------------------------------------------------------------------------------------------------------#
+
+sub MenuListView_ItemClick
+    {
+    my $index = shift;
+    foreach (keys %roomid) { $menuid = $_ if $roomid{$_} == $index; }
+    my($x, $y) = Win32::GUI::GetCursorPos();
+    
+    $window->TrackPopupMenu($usermenu->{UserMenu}, $x, $y);
+    }
+
+sub UserMenuIgnore_Click
+    {
+    $writesocketqueue->enqueue("IGNORE", $menuid);
+    }
+    
+sub UserMenuAntiignore_Click
+    {
+    my $id = $menuid;
+    $option{antiignore} = 1;
+    $userdata->set_antiignore($menuid);
+    print_output("NOTIFICATION", ANTIIGNORE_ID);
+    }
+    
+sub UserMenuMute_Click
+    {
+    my $id = $menuid;
+    $mute{$id} = $mute{$id} ? 0 : 1;
+    print_output("NOTIFICATION", MUTE_ID);
+    }
+    
+sub UserMenuMutecom_Click
+    {
+    my $id = $menuid;
+    $mute{"com$id"} = $mute{"com$id"} ? 0 : 1;
+    print_output("NOTIFICATION", MUTE_COMMENT_ID);
+    }
+    
+sub UserMenuCopy_Click      { $userdata->copy($menuid); }
+sub UserMenuGetname_Click   { get_name($menuid); }
+sub UserMenuGettrip_Click   { get_trip($menuid); }
+sub UserMenuStalk_Click     { $userdata->set_stalk($menuid); }
+sub UserMenuEvade_Click { $userdata->set_evade($menuid); }
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Logindata menu                                                                                                    #
+#-------------------------------------------------------------------------------------------------------------------#
+
+sub LogindataListView_ItemClick
+    {
+    my $index = shift;
+    
+    $index == 0  ? logindata_menu_name()      :
+    $index == 1  ? logindata_menu_character() :
+    $index == 2  ? logindata_menu_status()    :
+    $index == 3  ? logindata_menu_trip()      :
+    $index == 4  ? logindata_menu_rgb()       :
+    $index == 5  ? logindata_menu_x()         :
+    $index == 6  ? logindata_menu_y()         :
+    $index == 7  ? logindata_menu_scl()       :
+    undef;
+    }
+
+sub logindata_menu_name      { dialog("NAME");      } #0
+sub logindata_menu_character { dialog("CHARACTER"); } #1
+sub logindata_menu_status    { dialog("STATUS");    } #2
+sub logindata_menu_trip      { dialog("TRIP");      } #3
+sub logindata_menu_rgb       { dialog("RGB");       } #4
+sub logindata_menu_x         { dialog("X");         } #5
+sub logindata_menu_y         { dialog("Y");         } #6
+sub logindata_menu_scl       { dialog("SCL");       } #7
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+#Option menu                                                                                                        #
+#-------------------------------------------------------------------------------------------------------------------#
+
+sub OptionListView_ItemClick
+    {
+    ### Add reenter
+    my $index = shift;
+    
+    $index == 0  ? open_menu("ProfileMenu")  :
+    $index == 1  ? option_menu_default()     :
+    $index == 2  ? open_menu("SearchMenu")   :
+    $index == 3  ? option_menu_trigger_on()  :
+    $index == 4  ? option_menu_debug_on()    :
+    $index == 5  ? option_menu_roominfo_on() :
+    $index == 6  ? open_menu("LanguageMenu") :
+    $index == 7  ? option_menu_bkgnd_color() :
+    $index == 8  ? option_menu_proxy_on()    :
+    $index == 9  ? option_menu_timeout()     :
+    $index == 10 ? option_menu_skip()        :
+    $index == 11 ? option_menu_end()         :
+    $index == 12 ? open_menu("NewMenu")      :
+    $index == 13 ? option_menu_savelog()     :
+    $index == 14 ? option_menu_relogin()     :
+    $index == 15 ? option_menu_disconnect()  :
+    undef;
+    }
+    
+### Profile menu
+sub Profile1_Click
+    {
+    $userdata->set_profile(1, $logindata->get_id());
+    $writesocketqueue->enqueue("REENTER");
+    }
+sub Profile2_Click
+    {
+    $userdata->set_profile(2, $logindata->get_id());
+    $writesocketqueue->enqueue("REENTER");
+    }
+sub Profile3_Click
+    {
+    $userdata->set_profile(3, $logindata->get_id());
+    $writesocketqueue->enqueue("REENTER");
+    }
+
+### Default click (1)
+sub option_menu_default
+    {
+    $userdata->default($logindata);
+    $option{stalk}         = 0;
+    $option{nomove}        = 0;
+    $option{antiignore}    = 0;
+    $option{antiignoreall} = 0;
+    $writesocketqueue->enqueue("REENTER");
+    }
+
+### Search menu
+sub SearchMain_Click { $writesocketqueue->enqueue("SEARCH", "MAIN"); }
+sub SearchAll_Click  { $writesocketqueue->enqueue("SEARCH", "ALL");  }
+
+### Search user dialog
+sub SearchUser_Click { dialog("SEARCHUSER"); }
+
+### Trigger click (3)
+sub option_menu_trigger_on  { $option{popup} = $option{popup} ? 0 : 1; }
+
+### Debug click (4)
+sub option_menu_debug_on    { $option{debug} = $option{debug} ? 0 : 1; }
+
+### Roominfo click (5)
+sub option_menu_roominfo_on { $option{roominfo} = $option{roominfo} ? 0 : 1; }
+
+### Language menu
+sub LanguageEnglish_Click   { ($LANGUAGE, $ENCODING) = ("english",  "cp932"); }
+sub LanguageJapanese_Click  { ($LANGUAGE, $ENCODING) = ("japanese", "UTF-8"); }
+
+### Background color dialogue (7)
+sub option_menu_bkgnd_color { dialog("BKGNDCOLOR"); }
+
+### Proxy click (8)
+sub option_menu_proxy_on
+    {
+    $proxy{on} = $proxy{on} ? 0 : 1;
+    $writesocketqueue->enqueue("RELOGIN");
+    }
+
+### Timeout dialogue (9)
+sub option_menu_timeout { dialog("TIMEOUT"); }
+
+### Skip dialogue (10)
+sub option_menu_skip
+    {
+    $DIALOGTYPE = "SKIP";
+    dialog();
+    }
+
+sub option_menu_end { $outputfield->Scroll(-1); } ### New click (11)
+
+### New menu (12)
+sub NewMain_Click       { new_instance(); }
+sub NewHere_Click       { new_instance("here"); }
+
+### Save log dialogue (13)
+sub option_menu_savelog { dialog("SAVELOG"); }
+
+### Relogin click (14)
+sub option_menu_relogin { $readsocketthread->kill("STOP"); }
+
+### Disconnect click (15)
+sub option_menu_disconnect
+    {
+    $writesocketqueue->enqueue("<EXIT />", "<NOP />", "<NOP />");
+    $readsocketthread->kill("KILL");
+    }
+
+sub open_menu
+    {
+    no strict "refs";
+    my $menuname = shift;
+    my($x, $y)   = Win32::GUI::GetCursorPos();
+    
+    my $menuobject = lc($menuname);
+    $window->TrackPopupMenu(${$menuobject}->{"$menuname"}, $x, $y);
+    }
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Dialog                                                                                                            #
+#-------------------------------------------------------------------------------------------------------------------#
+
+sub DialogYes_Click
+    {
+    ### inputfield focus
+    ### no length limits
+    ### stat not working
+    my $text = $dialoginputfield->Text();
+    chomp($text);
+    
+    $dialog->Hide();
+    
+    my $loginid = $logindata->get_id();
+    
+    if( $DIALOGTYPE eq "NAME" ) {
+        $userdata->set_name($text, $loginid);
+        $writesocketqueue->enqueue("REENTER");
+    }
+    elsif( $DIALOGTYPE eq "CHARACTER" ) {
+        $userdata->set_character($text, $loginid);
+        $writesocketqueue->enqueue("REENTER");
+    }
+    elsif( $DIALOGTYPE eq "STATUS" ) {
+        $writesocketqueue->enqueue("STAT", $text);
+    }
+    elsif( $DIALOGTYPE eq "TRIP" ) {
+        $userdata->set_trip($text, $loginid);
+        $writesocketqueue->enqueue("REENTER");
+    }
+    elsif( $DIALOGTYPE eq "RGB" ) {
+        my($r, $g, $b) = ($1, $2, $3) if $text =~ /(\d{1,3}) (\d{1,3}) (\d{1,3})/;
+        $writesocketqueue->enqueue("REENTER");
+    }
+    elsif( $DIALOGTYPE eq "X" ) {
+        $writesocketqueue->enqueue("SETXYSCL", "x".$text);
+    }
+    elsif( $DIALOGTYPE eq "Y" ) {
+        $writesocketqueue->enqueue("SETXYSCL", "y".$text);
+    }
+    elsif( $DIALOGTYPE eq "SCL" ) {
+        my $scl = $userdata->get_scl($loginid) = 100 ? -100 : 100;
+        $writesocketqueue->enqueue("SETXYSCL", "scl".$scl);
+    }
+    elsif( $DIALOGTYPE eq "SEARCHUSER" ) {
+        $option{searchuser} = $text;
+        $writesocketqueue->enqueue("SEARCH", "ALL");
+    }
+    elsif( $DIALOGTYPE eq "SAVELOG" ) {
+        save_log($text);
+    }
+    elsif( $DIALOGTYPE eq "BKGNDCOLOR" ) {
+        $outputfield->SetBkgndColor($text);
+    }
+    elsif( $DIALOGTYPE eq "TIMEOUT" ) {
+        $proxy{timeout} = $text;
+    }
+    elsif( $DIALOGTYPE eq "SKIP" ) {
+        $proxy{skip}    = $text;
+    }
+    
+    $dialoglabel->Hide();
+    $DIALOGTYPE = undef;
+    }
+
+sub DialogNo_Click
+    {
+    $dialog->Hide();
+    $dialoglabel->Hide();
+    $DIALOGTYPE = undef;
+    }
+
+sub dialog
+    {
+    $DIALOGTYPE = shift;
+    ### Set dialog text
+    my($label, $title) =
+        $DIALOGTYPE eq "NAME"       ? ("Name:", "Choose a name")              :
+        $DIALOGTYPE eq "CHARACTER"  ? ("Character:", "Choose a character")    :
+        $DIALOGTYPE eq "STATUS"     ? ("Stat:", "Choose a stat")              :
+        $DIALOGTYPE eq "TRIP"       ? ("Trip:", "Choose a trip")              :
+        $DIALOGTYPE eq "RGB"        ? ("Color:", "Choose a color")            :
+        $DIALOGTYPE eq "X"          ? ("x:", "Choose x")                      :
+        $DIALOGTYPE eq "Y"          ? ("y:", "Choose y")                      :
+        $DIALOGTYPE eq "SCL"        ? ("scl:", "Choose scl")                  :
+        $DIALOGTYPE eq "SAVELOG"    ? ("Log name:", "Choose a log name")      :
+        $DIALOGTYPE eq "SEARCHUSER" ? ("User:", "Choose a user to search")    :
+        $DIALOGTYPE eq "BKGNDCOLOR" ? ("Color:", "Choose a background color") :
+        $DIALOGTYPE eq "TIMEOUT"    ? ("Timeout:", "Choose a timeout value")  :
+        $DIALOGTYPE eq "SKIP"       ? ("Skip:", "Number of proxies to skip")  : ### - Not working ?
+        (undef, undef);
+    
+    ### Change title
+    $dialog->Change(-title => $title);
+    
+    ### Add dialog text
+    $dialoglabel = $dialog->AddLabel(
+        -text => $label,
+        -top  => 26,
+        -left => 20
+    );
+    
+    $dialog->Show();
+    }
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Outputfield                                                                                                       #
+#-------------------------------------------------------------------------------------------------------------------#
+
+### Issues:
+###
+### - For some reason it only works with double click
+###
+sub Outputfield_MouseDown { $option{readonly} = 0; }
 
 ### Do something when a url is clicked
 ###
 ### Takes:
-### - Click related data
+### - array: Click related data
 ### Returns:
 ### - scalar: Url address
+###
 ### Issues:
 ### - Currently not implemented (25/11)
 ###
@@ -184,6 +547,22 @@ sub Outputfield_URL
       print "url: $url\n";
       }
     }
+
+
+#-------------------------------------------------------------------------------------------------------------------#
+# Inputfield                                                                                                        #
+#-------------------------------------------------------------------------------------------------------------------#
+
+### So that inputfield never loses focus
+###
+sub Inputfield_LostFocus { $inputfield->SetFocus() if $option{readonly}; }
+
+sub Inputfield_MouseDown
+    {
+    $option{readonly} = 1;
+    $inputfield->SetFocus();
+    }
+
 ### If enter(13) is pressed send the text and erases inputfield
 ### If up(38) is pressed loop between previous comments upside
 ### If down(40) is pressed loop between previous comments downside
@@ -195,14 +574,13 @@ sub Outputfield_URL
 ### - 37 : Left
 ###
 ### Takes:
-### - Inputfield related data
+### - array: Inputfield related data
 ### Returns:
 ### - Nothing
 ###
 ### Issues:
 ### - Annoying sound when pressing enter
 ### - When looping between @inputline elements upside cursor position isn't in the last position
-### - Also you can't move between $inputfield positions with left and right
 ### - /change doesn't work
 ###
 sub Inputfield_KeyDown
@@ -240,43 +618,41 @@ sub Inputfield_KeyDown
    ### Or key is up
    ###
    ### Issues:
-   ### - Use of uninitialized value in subroutine entry at 1711 (22/11)
    ### - utf8?
+   ###
    elsif( $key == 38 )
         {
         ### Get text and decode it from utf8
         my $text = $inputfield->Text()||"";
         $text    = decode("utf8", $text);
         
-        ### Create $inputcounter if it doesn't exist and push current line into @inputline
-        if( !$inputcounter )
+        ### Create $INPUTCOUNTER if it doesn't exist and push current line into @inputline
+        if( !$INPUTCOUNTER )
           {
-          $inputcounter = 0;
+          $INPUTCOUNTER = 0;
           unshift(@inputline, $text);
           }
 
         ### And copy previous line to $inputfield
-        if( $inputline[$inputcounter + 1] )
+        if( $inputline[$INPUTCOUNTER + 1] )
           {
-          $inputcounter++;
+          $INPUTCOUNTER++;
           $inputfield->SelectAll();
-          $inputfield->ReplaceSel($inputline[$inputcounter]);
+          $inputfield->ReplaceSel($inputline[$INPUTCOUNTER]);
           }
         }
    
    ### Or down...
    ###
-   ### Issues:
-   ### - Argument "" isn't numeric in subroutine entry at 1711 (22/11)
    elsif( $key == 40 )
         {
-        ### Create $inputcounter in case it doesn't exist
-        $inputcounter = 0 if !$inputcounter;
-        if( $inputline[$inputcounter - 1] and $inputcounter )
+        ### Create $INPUTCOUNTER in case it doesn't exist
+        $INPUTCOUNTER = 0 if !$INPUTCOUNTER;
+        if( $inputline[$INPUTCOUNTER - 1] and $INPUTCOUNTER )
           {
-          $inputcounter--;
+          $INPUTCOUNTER--;
           $inputfield->SelectAll();
-          $inputfield->ReplaceSel($inputline[$inputcounter]);
+          $inputfield->ReplaceSel($inputline[$INPUTCOUNTER]);
           }
         }
    
@@ -294,6 +670,13 @@ sub Inputfield_KeyDown
         Win32::GUI::SetCursorPos(--$x, $y);
         }
    }
+
+
+
+#--------------------------------------------------------------------------------------------------------------------
+
+
+
 ### Handles $inputfield input
 ###
 ### Takes:
@@ -302,8 +685,8 @@ sub Inputfield_KeyDown
 ### - Nothing
 ###
 ### Issues:
-### - Trip search in /addname not yet implemented
-### - Antistalk not well implemented
+###
+### - Evade not well implemented
 ###
 sub command_handler
     {
@@ -343,7 +726,7 @@ sub command_handler
              print_output("ERROR", STAT_TOO_LARGE);
              return;
          }
-         $writesocketqueue->enqueue("<SET stat=\"$1\" />");
+         $writesocketqueue->enqueue("STAT", $1);
          }
     elsif( $command =~ /\/trip (.+)/ )
          {
@@ -354,13 +737,12 @@ sub command_handler
          }
     elsif( $command =~ /\/room (.+)/ )
          {
-         $logindata->set_room2($1);
+         my $room = $1 ? $1 : '0';
+         $logindata->set_room2($room);
          $writesocketqueue->enqueue("REENTER");
          }
     elsif( $command =~ /\/rgb (\d{1,3}|x) (\d{1,3}|x) (\d{1,3}|x)/ )
-         {
-         #return if $_ !~ /\d{1,3}|x/ for ($1, $2, $3);
-         
+         {         
          my $r = $1 eq "x" ? $userdata->get_r($loginid) : $1;
          my $g = $2 eq "x" ? $userdata->get_g($loginid) : $2;
          my $b = $3 eq "x" ? $userdata->get_b($loginid) : $3;
@@ -417,32 +799,28 @@ sub command_handler
               print_output("NOTIFICATION", STALK_ID);
               }
          }
-    elsif( $command =~ /\/antistalk (.+)/ )
+    elsif( $command =~ /\/evade (.+)/ )
          {
          if   ( $1 eq "on" or $1 eq "off"  )
               {
-              $option{antistalk} = $1 eq "on" ? 1 : 0;
-              print_output("NOTIFICATION", ANTISTALK_ON);
+              $option{evade} = $1 eq "on" ? 1 : 0;
+              print_output("NOTIFICATION", EVADE_ON);
               }
          elsif( $1 =~ /(\d{1,3})/ )
               {
               my $id = $1;
-              $option{antistalk} = 1;
-              $userdata->set_antistalk($id);
-              print_output("NOTIFICATION", ANTISTALK_ID);
+              $option{evade} = 1;
+              $userdata->set_evade($id);
+              print_output("NOTIFICATION", EVADE_ID);
               }
          }
-    elsif( $command =~ /\/copy (.+)/ )
-         {
-         my $id = $1;
-         return if $id =~ /\d{1,3}/;
-         
-         $userdata->copy($id, $loginid);
+    elsif( $command =~ /\/copy (\d{1,3})/ )
+         {         
+         $userdata->copy($1, $loginid);
          $writesocketqueue->enqueue("REENTER");
          }
     elsif( $command eq "/default" )
          {
-         ### Not all options are resetted
          $userdata->default($logindata);
          $option{stalk}         = 0;
          $option{nomove}        = 0;
@@ -457,44 +835,42 @@ sub command_handler
          }
     elsif( $command =~ /profile (.+)/ )
          {
-         if( $1 =~ /^(\d+)$/)
-           {
-           my($pname, $pcharacter, $pstatus, $ptrip, $pr, $pg, $pb, $px, $py, $pscl) =
-             ("p".$1."name", "p".$1."character", "p".$1."status", "p".$1."trip",
-              "p".$1."r", "p".$1."g", "p".$1."b", "p".$1."x", "p".$1."y", "p".$1."scl");
-           
-           $userdata->set_data(
-               $config{$pname},
-               $loginid,
-               $config{$pcharacter},
-               $config{$pstatus},
-               $config{$ptrip},
-               $userdata->get_ihash($loginid),
-               $config{$pr},
-               $config{$pg},
-               $config{$pb},
-               $config{$px},
-               $config{$py},
-               $config{$pscl} );
-           }
+         $userdata->set_profile($1, $loginid);
          $writesocketqueue->enqueue("REENTER");
          }
     elsif( $command =~ /\/proxy\s*(.*)/ )
          {
-         if   ( $1 eq "on" or $1 eq "off" )
-              {
-              $proxy{on} = $1 eq "on" ? 1 : 0;
-              print_output("NOTIFICATION", PROXY_ON);
-              }
-         elsif( $1 =~ /timeout (\d\.*\d*)/ )
-              { $proxy{timeout} = $1; }
-         elsif( $1 =~ /change (\w{2,3})/ )
-              {
-              $proxy{change} =
-                  $1 eq "on"  ? 1 :
-                  $1 eq "off" ? 0 : $proxy{change};
-              }
+         return if !( $1 eq "on" or $1 eq "off" );
+
+         $proxy{on} = $1 eq "on" ? 1 : 0;
+         print_output("NOTIFICATION", PROXY_ON);
          $readsocketthread->kill("STOP");
+         }
+    elsif( $command =~ /skip (\d+)/ )
+         {
+         $proxy{skip} = $1;
+         print_output("NOTIFICATION", PROXY_SKIP);
+         }
+    elsif( $command =~ /timeout (\d\.*\d*)/ )
+         {
+         $proxy{timeout} = $1;
+         print_output("NOTIFICATION", PROXY_TIMEOUT);
+         }
+    elsif( $command =~ /site (\d{1,3})/ )
+         {
+         $proxy{site} =
+             $1 == 1 ? "socksproxy" :
+             $1 == 2 ? "socksproxylist" :
+             $proxy{site};
+         print_output("NOTIFICATION", PROXY_SITE);
+         $readsocketthread->kill("STOP");
+         }
+    elsif( $command =~ /change (\w{2,3})/ )
+         {
+         $proxy{change} =
+             $1 eq "on"  ? 1 :
+             $1 eq "off" ? 0 : $proxy{change};
+         print_output("NOTIFICATION", PROXY_CHANGE);
          }
     elsif( $command =~ /\/clear (.+)/ )
          {
@@ -513,28 +889,7 @@ sub command_handler
     elsif( $command =~ /\/end/ )
          { $outputfield->Scroll(-1); }
     elsif( $command =~ /\/new\s*(.*)|\/newinstance\*(.*)/ )
-         {
-         ### It would be better if a instance skipped the ip other instances are currently using
-         ### x doesnt work
-         my $search = $1;
-         
-         ### Make a backup of trip.txt
-         system("copy trip.txt tripbackup.txt") if $option{savetrip} and -e "trip.txt";
-         
-         if( $search =~ /skip (\d+)/ ) {
-             $proxy{skip} = $1;
-         }
-         if( $search =~ /here\s*(.*)/ ) {
-             my $instancecounter = $1||1;
-             my $room = $logindata->get_room2();
-             
-             for(1..$instancecounter) {
-                 system("start perl monachat.pl -proxy yes -room $room -savetrip no");
-                 sleep(1);
-             }
-         }
-         else { system("start perl monachat.pl -proxy yes -savetrip no"); }
-         }
+         { $1 ? new_instance($1) : new_instance(); }
     elsif( $command =~ /\/antiignore (.+)/ )
          {
          if   ( $1 eq "on" or $1 eq "off" )
@@ -555,7 +910,7 @@ sub command_handler
          }
     elsif( $command =~ /\/mute (.+)/ )
          {
-         my $search = $1;
+         my $search = $1; ###
          
          if   ( $search eq "on" or $search eq "off" ) {
                 print_output("NOTIFICATION", MUTE_ON);
@@ -614,7 +969,7 @@ sub command_handler
          }
     elsif( $command =~ /\/debug (.+)/ )
          {
-         return if $1 ne "on" or $1 ne "off";
+         return if !($1 eq "on" or $1 eq "off");
          $option{debug} = $1 eq "on" ? 1 : 0;
          print_output("NOTIFICATION", DEBUG_ON);
          }
@@ -625,7 +980,7 @@ sub command_handler
          }
     elsif( $command =~ /\/readonly (.+)/ )
          {
-         return if $1 ne "on" or $1 ne "off";
+         return if $1 ne "on" and $1 ne "off";
          $option{readonly} = $1 eq "on" ? 1 : 0;
          $outputfield->Change(-readonly => $option{readonly});
          }
@@ -635,42 +990,9 @@ sub command_handler
          $outputfield->SetBkgndColor($1);
          }
     elsif( $command =~ /\/getname (.+)/ )
-         { search_trip($1); }
+         { get_name($1); }
     elsif( $command =~ /\/gettrip (.+)/ )
-         {
-         my $search = $1;
-         my $result;
-         my @result;
-         
-         my $name = $search =~ /name (\d{1,3})/ ?
-             encode("utf8", $1) :
-             encode("utf8", $userdata->get_name($1));
-         
-         ### Load trip.txt
-         open(TRIP, "<", "trip.txt");
-         @triplist = <TRIP>;
-         @triplist = grep(/(.+)\n/, @triplist);
-         chomp(@triplist);
-         close(TRIP);
-         
-         ### Search for name in trip.txt
-         foreach my $line (@triplist)
-             {
-             if( $line =~ /\Q$name\E/ )
-               {
-               $result .= substr($line, 0, 10).", ";
-               push(@result, substr($line, 0, 10));
-               }
-             }
-
-         ### Delete the comma at the end 
-         $result = substr($result, 0, -2);
-         
-         ### Print result
-         $name = decode("utf8", $name);
-         print_output("SEARCH", "$name: $result\n");
-         search_trip($_) foreach (@result);
-         }
+         { get_trip($1); }
     elsif( $command =~ /\/addname (\d{1,3}) (.+)/ )
          {
          if( !$option{savetrip} ) {
@@ -684,25 +1006,7 @@ sub command_handler
     elsif( $command eq "/getroom" )
          { foreach my $id (keys %roomid) { print_data("USER", $id); } }
     elsif( $command =~ /\/save\s*(.*)/  )
-         {
-         my($second, $minute, $hour, $day, $month, $year) = localtime(time());
-         system("mkdir LOG") if !-e "/LOG";
-         
-         ### If there is no filename, defaults to the rooms name
-         my $name = $1 ? $1 : $logindata->get_room2();
-         my $text = $outputfield->Text();
-         
-         ### Fix month and year format
-         $month++;
-         $year += 1900;
-         local $filename  = "[$day-$month-$year ".$hour."h".$minute."m".$second."s"."] $name.txt";
-         
-         ### Save log
-         open(CHATLOG, ">", "LOG/$filename") or print_output("ERROR", SAVELOG_ERROR);
-         print CHATLOG $text;
-         close(CHATLOG);
-         print_output("NOTIFICATION", SAVELOG_SUCCESS) if -e "LOG/$filename";
-         }
+         { savelog($1); }
     elsif( $command eq "/exit" ) { die; } ### Not working
     else { print_output("ERROR", NO_COMMAND); }
     }
@@ -712,9 +1016,6 @@ sub command_handler
 ### Takes:
 ### - array: An array sorted with a color/phrase scheme
 ### Returns:
-### - Nothing
-###
-### Issues:
 ### - Nothing
 ###
 sub print_list
@@ -754,114 +1055,122 @@ sub print_list
 ### Returns:
 ### - Nothing
 ###
-### Issues:
-### - Nothing
-###
 sub print_output {
     my($option, $usercolor) = (shift, "");
-    my $line = "-" x 191;
+    my $line =
+        $option{displaymode} == 1 ? "-" x 191 :
+        $option{displaymode} == 2 ? "-" x 93  :
+        undef;
     
     ### Sets the user color
-    if( $_[0] eq "USERCOLOR" ) {
-        shift;
-        $usercolor = shift;
-        $usercolor = "#000000" if $usercolor eq "#FFFFFF" or $usercolor eq "#646464";
-    }
+    if( $_[0] eq "USERCOLOR" )
+      {
+      shift;
+      $usercolor = shift;
+      $usercolor = "#000000" if $usercolor eq "#FFFFFF" or $usercolor eq "#646464";
+      }
     
-    if( $option eq "USERDATA" ) {
-        my($name, $trip, $ihash, $id, $status, $character, $x, $scl, $option) = @_;
+    if( $option eq "USERDATA" )
+      {
+      my($name, $trip, $ihash, $id, $status, $character, $x, $scl, $option) = @_;
       
-        print_list("#000000", "--> ") if $option =~ ENTER and $id != $logindata->get_id();
-        print_list(
-            $usercolor||"#000000", $name,
-            $usercolor||"#000000", "$trip$ihash",
-            $usercolor||"#000000", " ($id)",
-            $usercolor||"#000000", " $status",
-            $usercolor||"#000000", " $character",
-            $usercolor||"#000000", " x$x $scl",
-            $usercolor||"#000000", $option
+      print_list("#000000", "--> ") if $option =~ ENTER and $id != $logindata->get_id();
+      print_list(
+          $usercolor||"#000000", $name,
+          $usercolor||"#000000", "$trip$ihash",
+          $usercolor||"#000000", " ($id)",
+          $usercolor||"#000000", " $status",
+          $usercolor||"#000000", " $character",
+          $usercolor||"#000000", " x$x $scl",
+          $usercolor||"#000000", $option
         );
-        print_list("#0000FF", "$line\n\n") if $option =~ ENTER and $id == $logindata->get_id();
-    }
-    elsif( $option eq "COMMENT" ) {
-        my($date, $name, $trip, $ihash, $id, $comment) = @_;
+      print_list("#0000FF", "$line\n\n") if $option =~ ENTER and $id == $logindata->get_id();
+      }
+    elsif( $option eq "COMMENT" )
+         {
+         my($date, $name, $trip, $ihash, $id, $comment) = @_;
          
-        print_list(
-            "#000000", $date,
-            $usercolor||"#000000", " $name",
-            $usercolor||"#000000", "$trip$ihash",
-            $usercolor||"#000000", " ($id)",
-            "#000000", ": $comment"
-        );
-    }
-    elsif( $option eq "IGNORE" ) {
-        my($name, $ihash, $id, $ignore, $ignorecolor, $ignorename, $ignoreihash, $ignoreid) = @_;
-        $ignorecolor = "#000000" if $ignorecolor eq "#FFFFFF" or $ignorecolor eq "#646464";
-        $ignorega    = $LANGUAGE eq "japanese" ? GA : " $ignore";
-        #$ignorename  = $LANGUAGE eq "japanese" ? "$ignorename" : " $ignorename"; ?
+         print_list (
+             "#000000", $date,
+             $usercolor||"#000000", " $name",
+             $usercolor||"#000000", "$trip$ihash",
+             $usercolor||"#000000", " ($id)",
+             "#000000", ": $comment"
+           );
+         }
+    elsif( $option eq "IGNORE" )
+         {
+         my($name, $ihash, $id, $ignore, $ignorecolor, $ignorename, $ignoreihash, $ignoreid) = @_;
+         $ignorecolor = "#000000" if $ignorecolor eq "#FFFFFF" or $ignorecolor eq "#646464";
+         $ignorega    = $LANGUAGE eq "japanese" ? GA : " $ignore";
+         #$ignorename  = $LANGUAGE eq "japanese" ? "$ignorename" : " $ignorename"; ?
          
-        print_list(
-            $usercolor||"#000000", $name,
-            $usercolor||"#000000", " $ihash",
-            $usercolor||"#000000", " ($id)",
-            "#000000", "$ignorega",
-            $ignorecolor||"#000000", $ignorename,
-            $ignorecolor||"#000000", " $ignoreihash",
-            $ignorecolor||"#000000", " ($ignoreid)"
-        ); 
+         print_list (
+             $usercolor||"#000000", $name,
+             $usercolor||"#000000", " $ihash",
+             $usercolor||"#000000", " ($id)",
+             "#000000", "$ignorega",
+             $ignorecolor||"#000000", $ignorename,
+             $ignorecolor||"#000000", " $ignoreihash",
+             $ignorecolor||"#000000", " ($ignoreid)"
+           ); 
         $LANGUAGE eq "japanese" ?
             print_list("#000000", "$ignore") :
             print_list("#000000", "\n");
-    }
-    elsif( $option eq "LOGIN" ) {
-        my $text = shift;
-        chomp($text);
+         }
+    elsif( $option eq "LOGIN" )
+         {
+         my $text = shift;
+         chomp($text);
          
-        print_list(
+         print_list (
             "#000000", "$line\n",
             "#000000", "$LOGINSPACE$text",
             "#000000", "$line\n"
-        );
-    }
-    elsif( $option eq "ROOM" ) {
-        my $text = shift;
-        chomp($text);
+           );
+         }
+    elsif( $option eq "ROOM" )
+         {
+         my $text = shift;
+         chomp($text);
          
-        print_list(
-            "#0000FF", "$line\n",
-            "#0000FF", "$ROOMSPACE$text\n",
-            "#0000FF", "$line\n"
-        );
-    }
-    elsif( $option eq "EXIT" ) {
-        my $text = shift;
-        return if $text eq "\n"; # ?
+         print_list(
+             "#0000FF", "$line\n",
+             "#0000FF", "$ROOMSPACE$text\n",
+             "#0000FF", "$line\n"
+           );
+         }
+    elsif( $option eq "EXIT" )
+         {
+         my $text = shift;
+         return if $text eq "\n"; # ?
          
-        print_list(
-            "#000000", "<-- ",
-            $usercolor||"#000000", $text
-        );
-    }
-    elsif( $option eq "SEARCH" ) {
-        my $text = shift;
-        chomp($text);
+         print_list(
+             "#000000", "<-- ",
+             $usercolor||"#000000", $text
+           );
+         }
+    elsif( $option eq "SEARCH" )
+         {
+         my $text = shift;
+         chomp($text);
          
-        print_list(
-            "#FFFF00", "$line\n",
-            "#FFFF00", "$text\n",
-            "#FFFF00", "$line\n"
-        );
-    }
+         print_list(
+             "#FFFF00", "$line\n",
+             "#FFFF00", "$text\n",
+             "#FFFF00", "$line\n"
+           );
+         }
     else {
-        my $text  = shift;
-        my $color =
-            $option eq "NOTIFICATION" ? "#0000FF" :
-            $option eq "ENTER"        ? $usercolor||"#000000" :
-            $option eq "CHANGE"       ? $usercolor||"#000000" :
-            $option eq "RSET"         ? $usercolor||"#000000" :
-            $option eq "ERROR"        ? "#FF0000" : "#000000";
-        print_list($color, $text);
-    }
+         my $text  = shift;
+         my $color =
+             $option eq "NOTIFICATION" ? "#0000FF" :
+             $option eq "ENTER"        ? $usercolor||"#000000" :
+             $option eq "CHANGE"       ? $usercolor||"#000000" :
+             $option eq "RSET"         ? $usercolor||"#000000" :
+             $option eq "ERROR"        ? "#FF0000" : "#000000";
+         print_list($color, $text);
+         }
 }
 
 ### Login function, this function is never called from the main thread
@@ -870,12 +1179,6 @@ sub print_output {
 ### - scalar: option with FIRSTTIME (optional)
 ### Returns:
 ### - Nothing
-###
-### Issues:
-### - Hangs up a lot when logging with a proxy, too slow
-### - ^A bit better, but frequently relogs with the same proxy (14/11)
-### - Use of initialized value $option in string eq at 340, 353, 356
-### Login with proxies take too long, for some reason the connection is more unnestable than before?
 ###
 sub login
     {
@@ -887,7 +1190,14 @@ sub login
       ### my $previousaddress; ?
       while() {
           ### Get proxy list if it's empty
-          get_proxy_list() if !@proxyaddr or !@proxyport;
+          while(!@proxyaddr)
+               {
+               $proxy{version} = 5 if $proxy{site} eq "socksproxylist";
+               get_proxy_list();
+              
+               if ( $proxy{site} ne "socksproxylist" and !@proxyaddr )
+                  { $proxy{version} = $proxy{version} == 4 ? 5 : 4; }
+               }
            
           ### Connect to the proxy
           $remote = IO::Socket::Socks->new(
@@ -901,23 +1211,25 @@ sub login
           ) or warn "$SOCKS_ERROR\n" and shift(@proxyaddr) and shift(@proxyport) and redo;
            
           ### Redo if skip is higher than 0
-          if( $proxy{skip} or $proxy{change} ) {
-              shift(@proxyaddr);
-              shift(@proxyport);
-              $proxy{skip}--;
-              next;
-          }
+          if( $proxy{skip} or $proxy{change} )
+            {
+            shift(@proxyaddr);
+            shift(@proxyport);
+            $proxy{skip}--;
+            next;
+            }
+          
           print "Connected to proxy.\n";
           last;
       }
     }
     else {
-        $remote = IO::Socket::INET->new(
-            PeerAddr => $socketdata{address},
-            PeerPort => $socketdata{port},
-            Proto    => "tcp"
-        ) or die "Couldn't connect: $!";
-    }
+         $remote = IO::Socket::INET->new(
+             PeerAddr => $socketdata{address},
+             PeerPort => $socketdata{port},
+             Proto    => "tcp"
+          ) or die "Couldn't connect: $!";
+        }
     $select = IO::Select->new($remote);
     
     print $remote "MojaChat\0";
@@ -934,22 +1246,19 @@ sub login
 ### - Nothing
 ###
 ### Issues:
-### - Frequent infinite loop when declaring variables
-### - ^Change doesn't work (16/11)
+###
 ### - Trip doesn't change until relogin (16/11)
-### - Use of initialized value $attrib at line 359 (?)
-### - Use of initialized value ALL at 360 (?)
-### - Wide character in print at line 573 (14/11)
-### - Wide character in print at line 668 (16/11) when changing to a room with hiragana
-### - Wide character in print at 805 with $name (24/11)
 ###
 sub enter_room
     {
     my($option, $enter) = (shift||"", "");
-    my $id     = $logindata->get_id();
-    my $room   = $logindata->get_room2() eq "main" ?
-        $logindata->get_room() :
-        $logindata->get_room()."/".$logindata->get_room2();
+    my $id    = $logindata->get_id();
+    
+    my $room  = $logindata->get_room();
+    my $room2 = $logindata->get_room2();
+    if( $room2 and $room2 ne "main" ) { $room .= "/$room2"; }
+    #else { $room .= "/0"; } ### So that it can enter room 0
+    
     my $attrib = $logindata->get_attrib();
     my($name, $character, $status, undef, $ihash, $r, $g, $b, $x, $y, $scl) =
         $option eq "FIRSTTIME" ? $logindata->get_data() : $userdata->get_data($id);
@@ -978,6 +1287,38 @@ sub enter_room
          }
     }
 
+
+sub new_instance
+    {
+    ### It would be better if a instance skipped the ip other instances are currently using
+    ### x doesnt work
+    my $search = shift||"";
+         
+    ### Make a backup of trip.txt
+    system("mkdir tripbackup") if !-e "tripbackup";
+    my($second, $minute, $hour, $day, $month, $year) = localtime(time());
+    $month++;
+    $year += 1900;
+    my $filename = "[$day-$month-$year $hour"."h$minute"."m$second"."s]trip.txt";
+    system("copy trip.txt \"tripbackup\\$filename\"") if -e "trip.txt";
+         
+    $proxy{skip} = $1 if $search =~ /skip (\d+)/;
+    my $site = $proxy{site} eq "socksproxy" ? 1 : 2; ###
+    
+    if( $search =~ /here\s*(.*)/ )
+      {
+      my $instancecounter = $1||1;
+      my $room = $logindata->get_room2();
+             
+      for(1..$instancecounter)
+         {
+         system("start perl monachat.pl -proxy yes -room $room -site $site -savetrip no");
+         sleep(1);
+         }
+      }
+    else { system("start perl monachat.pl -proxy yes -site $site -savetrip no"); }
+    }
+
 ### Send x, y and scl(direction) signal to the server, calls to this function are in the format "x$x y$y scl$scl"
 sub send_x_y_scl
     {
@@ -999,7 +1340,7 @@ sub send_x_y_scl
 ###
 ### Issues:
 ### - Not sure if ping problem while looping between all rooms is fixed
-### - Search print probably doesn't work
+###
 sub search
     {
     local $option = shift||"";
@@ -1098,17 +1439,60 @@ sub search
 ### - Nothing
 ###
 ### Issues:
-### - Maybe too little proxies
+### - Would be better to have more sites, socksproxylist have a lot of proxies but don't know how reliable it is
 ###
 sub get_proxy_list
     {
     my $useragent = LWP::UserAgent->new();
     $useragent->agent("getproxylist");
     $useragent->show_progress(1);
-    my $proxylist  = $useragent->get("http://socks-proxy.net");
-    $proxylist     = $proxylist->content();
-    @proxyaddr     = $proxylist =~ /<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})<\/td><td>\d{4,5}<\/td>.+?Socks4/g;
-    @proxyport     = $proxylist =~ /<td>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}<\/td><td>(\d{4,5})<\/td>.+?Socks4/g;
+    
+    if( $proxy{site} eq "socksproxy" ) {
+        my $socks     = "Socks".$proxy{version};
+        my $proxylist = $useragent->get("http://socks-proxy.net");
+        $proxylist    = $proxylist->content();
+        
+        @proxyaddr    = $proxylist =~ /<td>(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})<\/td><td>\d{4,5}<\/td>.+?$socks/g;
+        @proxyport    = $proxylist =~ /<td>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}<\/td><td>(\d{4,5})<\/td>.+?$socks/g;
+    }
+    
+    elsif( $proxy{site} eq "socksproxylist" ) {
+        ### Get main page...
+        my $proxylist = $useragent->get("http://socksproxylist24.blogspot.com");
+        $proxylist = $proxylist->content();
+        
+        ### And then post page...
+        my $listurl = $1 if $proxylist =~ /(http:\/\/socksproxylist24\.blogspot\.com\.?\w*.+?-socks-proxy-list.+?\.html)/;
+        $proxylist = $useragent->get($listurl);
+        $proxylist = $proxylist->content();
+        
+        ### And recognize addresses
+        @proxylist = $proxylist =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{3,5})/g;    
+        @proxyaddr = map(/(.+?):.+/, @proxylist);
+        @proxyport = map(/.+?:(.+)/, @proxylist);
+    }
+    }
+
+sub save_log
+    {
+    my $name = shift;
+    my($second, $minute, $hour, $day, $month, $year) = localtime(time());
+    system("mkdir LOG") if !-e "/LOG";
+         
+    ### If there is no filename, defaults to the rooms name
+    $name = $logindata->get_room2() if !$name;
+    my $text = $outputfield->Text();
+         
+    ### Fix month and year format
+    $month++;
+    $year += 1900;
+    local $filename  = "[$day-$month-$year ".$hour."h".$minute."m".$second."s"."] $name.txt";
+         
+    ### Save log
+    open(CHATLOG, ">", "LOG/$filename") or print_output("ERROR", SAVELOG_ERROR);
+    print CHATLOG $text;
+    close(CHATLOG);
+    print_output("NOTIFICATION", SAVELOG_SUCCESS) if -e "LOG/$filename";
     }
 
 ### Ping function, this function is only used as a separate thread
@@ -1121,21 +1505,24 @@ sub get_proxy_list
 ### Issues:
 ### - Can't write directly to socket, so it's a bit unreliable
 ###
-sub ping {
+sub ping
+    {
     my $counter;
-    while() {
+    while()
+        {
         local $SIG{"STOP"} = sub {
             $pingsemaphore->down();
             $counter = 0;
             $pingsemaphore->up();
         };
          
-        for( $counter = 0; $counter <= 100; $counter++ ) {
-            select(undef, undef, undef, 0.2);
-            $writesocketqueue->enqueue("<NOP />") if $counter >= 100;
+        for( $counter = 0; $counter <= 100; $counter++ )
+           {
+           select(undef, undef, undef, 0.2);
+           $writesocketqueue->enqueue("<NOP />") if $counter >= 100;
+           }
         }
     }
-}
 
 ### Stores all the names of an ihash
 ###
@@ -1155,7 +1542,7 @@ sub ping {
 ### - Nothing
 ###
 ### Issues:
-### - Doesn't really match names, but look inside them
+### - Doesn't really match names, just look inside them
 ###
 sub trip_store
     {
@@ -1165,11 +1552,11 @@ sub trip_store
          my $name = $tripqueue->dequeue();
          
          ### Creates a new file and prints the ihash and name in it if it doesn't exist
-         if( !-e "trip.txt" )
-           {
-           open(TRIP, ">", "trip.txt") or die "Couldn't create trip.txt\n";
-           print TRIP "$ihash : $name";
-           }
+         if   ( !-e "trip.txt" )
+              {
+              open(TRIP, ">", "trip.txt") or die "Couldn't create trip.txt\n";
+              print TRIP "$ihash : $name";
+              }
          else {
               open(TRIP, "<:encoding(UTF-8)", "trip.txt") or print_output("ERROR", TRIP_ERROR) and redo;
               my @trip = <TRIP>;
@@ -1179,7 +1566,7 @@ sub trip_store
               ### Loops through the file to find the trip and create one if doesn't exist
               foreach my $line ( keys @trip )
                       {
-                      chomp($trip[$line]);                      
+                      chomp($trip[$line]);
                       if( $trip[$line] =~ /^\Q$ihash\E/)
                         {
                         $trip[$line] .= " : $name" if $trip[$line] !~ /\Q: $name\E/;
@@ -1191,7 +1578,7 @@ sub trip_store
               ### And prints @trip into trip.txt
               open(TRIP, ">", "trip.txt") or print_output("ERROR", TRIP_ERROR) and redo;
               chomp(@trip);
-              if( $trip[0] eq "" or $trip[0] eq " " or !$trip[0] ) # if( $trip[0] !~ /^.{10}/ )
+              if( $trip[0] eq "" or $trip[0] eq " " or !$trip[0] ) ### - if( $trip[0] !~ /^.{10}/ )
                 {
                 print_output("ERROR", TRIP_EMPTY);
                 redo;
@@ -1206,16 +1593,16 @@ sub trip_store
          }
     }
 
-sub search_trip
+sub get_name
     {
     my($search, $match) = (shift, 0);
     local $trip;
     my(@tripfile, @triplist);
          
     ### Push trips into an array
-    if   ( $search =~ /^.{10}$/ )   { push(@triplist, $search); }
-    elsif( $search =~ /^\d{1,3}$/ ) { push(@triplist, $userdata->get_ihash($search)); }
-    elsif( $search eq "all" )       { push(@triplist, $userdata->get_ihash($_)) foreach (keys %roomid); }
+    if   ( $search =~ /^(.{10})$/ )   { push(@triplist, $1); }
+    elsif( $search =~ /^(\d{1,3})$/ ) { push(@triplist, $userdata->get_ihash($1)); }
+    elsif( $search eq "all" )         { push(@triplist, $userdata->get_ihash($_)) foreach (keys %roomid); }
     else { return; }
          
     ### Return if any trip has an incorrect format
@@ -1231,7 +1618,6 @@ sub search_trip
     ### Load file
     open(TRIP, "<:encoding(UTF-8)", "trip.txt") or print_output("ERROR", TRIP_ERROR) and return;
     @tripfile = <TRIP>;
-    @tripfile = grep(/(.+?)\n/, @tripfile);
     chomp(@tripfile);
     close(TRIP);
          
@@ -1254,6 +1640,40 @@ sub search_trip
         }
     }
 
+sub get_trip
+    {
+    my $search = shift;
+    my $name;
+    my $result;
+    my @result;
+         
+    if   ( $search =~ /^name (.+)$/ ) { $name = encode("utf8", $1); }
+    elsif( $search =~ /^(\d{1,3})$/ ) { $name = encode("utf8", $userdata->get_name($1)); }
+    else { $name = encode("utf8", $search); }
+         
+    ### Load trip.txt
+    open(TRIP, "<", "trip.txt");
+    my @triplist = <TRIP>;
+    chomp(@triplist);
+    close(TRIP);
+         
+    ### Search for name in trip.txt
+    foreach my $line (@triplist)
+        {
+        next if $line !~ /$name/; ### not quotemeta
+        $result .= substr($line, 0, 10).", ";
+        push(@result, substr($line, 0, 10));
+        }
+
+    ### Remove the comma at the end
+    $result = substr($result, 0, -2);
+         
+    ### Print result
+    $name = decode("utf8", $name);
+    print_output("SEARCH", "$name: $result\n");
+    get_name($_) foreach (@result);
+    }
+
 ### This is the main thread, login("firsttime") send login information from $logindata and not from $userdata,
 ### as there is no information stored in it yet, $starttime purpose is only to store time from the creation of
 ### the thread, this function tries to read from $writesocketqueue and send the argument to write_handler(),
@@ -1264,8 +1684,9 @@ sub search_trip
 ### Returns:
 ### - Nothing
 ###
-### Issues:
-### - Uptime doesn't show correctly when relogging
+### TODO:
+###
+### - Make a separate function time return
 ###
 sub read_socket
     {
@@ -1276,16 +1697,19 @@ sub read_socket
     while()
          {
          local $SIG{"KILL"} = sub {
+             local $second = time() - $starttime;
+             local $minute = int($second / 60);
+             $second      %= 60;
+             $starttime    = time();
              $remote->close();
              print_output("NOTIFICATION", DISCONNECT);
          };
          local $SIG{"STOP"} = sub {
              local $second = time() - $starttime;
-             local $minute = $second / 60;
+             local $minute = int($second / 60);
              $second      %= 60;
              $starttime    = time();
              print_output("NOTIFICATION", RELOGIN);
-             print_output("NOTIFICATION", UPTIME);
              login();
          };
          
@@ -1307,16 +1731,13 @@ sub read_socket
     }
 
 ### Prints user login data and calls user_code 25 to create a sprite, then checks if that users ihash exists
-### in stalk or antistalk and if so, the id is added
+### in stalk or evade and if so, the id is added
 ###
 ### Takes:
 ### - scalar: ENTER or USER
 ### - scalar: id
 ### Returns:
 ### - Nothing
-###
-### Issues:
-### - Argument "" isn't numeric at 528
 ###
 sub print_data
     {
@@ -1325,16 +1746,18 @@ sub print_data
     local $room = $logindata->get_room2();
     if( $name ne $userdata->get_name($id) )
       { ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = $userdata->get_data($id); }
-    $scl       = $scl eq "100" ? LEFT : RIGHT;
+    $scl       = $scl eq "100" ? RIGHT : LEFT;
     $trip      = $trip eq "" ? " " : " $trip ";
     $enteruser = $enteruser eq "ENTER" ? ENTER : "\n";
     
     if( $option{room} )
       {
       ### Issues:
+      ###
       ### - Change space indentation to print_output() with japanese ?
       ### - Don't work correctly when there is no </ROOM> signal
-      #$room = $logindata->get_room2() if !$room;
+      
+      #$room = $logindata->get_room2() if !$room; ###
       print_output("ROOM", ROOM);
       $option{room} = 0;
       }
@@ -1349,10 +1772,11 @@ sub print_data
       push_event(25, $id);
       }
     
-    $name = "null"                     if !$name;
+    $name  = "null"                    if !$name;
+    $ihash = substr($ihash, 1)         if $config{square};
     $tripqueue->enqueue($ihash, $name) if $option{savetrip};
     $userdata->set_stalk($id)          if $option{stalk}     and $userdata->get_stalk($userdata->get_ihash($id));
-    $userdata->set_antistalk($id)      if $option{antistalk} and $userdata->get_antistalk($userdata->get_ihash($id));
+    $userdata->set_evade($id)      if $option{evade} and $userdata->get_evade($userdata->get_ihash($id));
     }
 
 ### Handles information sent from read_socket()
@@ -1362,24 +1786,20 @@ sub print_data
 ### Returns:
 ### - Nothing
 ###
-### Issues:
-### - $write !~ />$/ : ?
-### - Maybe there are issues with the first chomp
-###
 sub write_handler
     {
     my $write = shift;
     
     if   ( $write eq "REENTER"  ) { enter_room("REENTER"); }
+    elsif( $write eq "STAT"     ) { print $remote qq{<SET stat="}.$writesocketqueue->dequeue().qq{" />\0}; }
     elsif( $write eq "SETXYSCL" ) { send_x_y_scl($writesocketqueue->dequeue()); }
     elsif( $write eq "SEARCH"   ) { search($writesocketqueue->dequeue()); }
-    elsif( $write eq "SHUTUP"   ) { for (1..9) { print $remote "<RSET cmd=\"go\" param=\"$_\" />\0"; } }
+    elsif( $write eq "SHUTUP"   ) { for (1..9) { print $remote qq{<RSET cmd="go" param="$_" />\0}; } }
     elsif( $write eq "IGNORE"   )
          {
          my $id    = $writesocketqueue->dequeue();
          my $ihash = $userdata->get_ihash($id);
          my $stat  = $userdata->get_ignore($ihash, $id) ? "off" : "on";
-         print "id: $id ihash: $ihash, stat: $stat\n";
          print $remote qq{<IG ihash="$ihash" stat="$stat" />\0};
          }
     elsif( $write eq "COMMENT"  )
@@ -1395,6 +1815,7 @@ sub write_handler
          print $remote $xml if $select->can_write();
          }
     else {
+         ### If it doesn't end in > (signal is not complete) and isn't "MojaChat" get the second part
          $write .= $writesocketqueue->dequeue() if ($write !~ />$/) and ($write ne "MojaChat"||"");
          chomp($write);
          print $remote "$write\0" if $select->can_write();
@@ -1421,15 +1842,9 @@ sub write_handler
 ### - <COM cmt="COMMENT" id="ID" >          : Comment signal, there are various patterns
 ###
 ### Issues:
-### - Some signals are repeated or have an unknown meaning
-### - Antistalk is bad implemented
+### - Evade is bad implemented
 ### - There are three kind of comment signals
-### - Not sure if the signal repair function works correctly
 ### - There are times when your login data isn't sent and therefore the <\ROOM> endline isn't shown in screen
-### - Use of initialized value $name, $ihash in concatenation or string at 689
-### - Argument "" isn't numeric at 966, 971
-### - Argument "100" escap..." isn't numeric ne (!=)at
-### - <SET cmd="ev" pre="0" param="0" id=\d{1,3} /> - ?
 ###
 sub read_handler
     {
@@ -1505,8 +1920,6 @@ sub read_handler
               }    
          elsif( $read[0] =~ /<SET stat="(.*?)" id="(.+?)" \/>/ )
               {
-              ### Issues:
-              ### - Wide character in print at 1122 with $status (24/11)
               local($status, $id) = ($1, $2);
               local $name        = $userdata->get_name($id);
               local $trip        = $userdata->get_trip($id);
@@ -1544,20 +1957,20 @@ sub read_handler
               if( $userdata->get_scl($id) != $scl )
                 {
                 $userdata->set_scl($scl, $id);
-                $scl = $scl == 100 ? LEFT : RIGHT;
+                $scl = $scl == 100 ? RIGHT : LEFT;
                 print_output("CHANGE", "USERCOLOR", $hexrgb, SET_SCL) if !$option{mute} and !$mute{$id};
                 }
               
               ### Send event to SDL queue
               push_event(27, $id) if $ENABLE_GRAPHIC_INTERFACE;
               
-              ### Stalk or antistalk
+              ### Stalk or evade
               if( $option{stalk} and !$option{nomove} and $userdata->get_stalk($id) )
                 {
                 my $line = "x$x"."y$y"."scl$scl";
                 send_x_y_scl($line);
                 }
-              if( $option{antistalk} and $userdata->get_antistalk($id) )
+              if( $option{evade} and $userdata->get_evade($id) )
                 {
                 if( $userdata->get_x($id) - $x < 40 and $userdata->get_x($id) - $x > -40 )
                   { $userdata->set_x(680-$x+40, $loginid); }
@@ -1580,17 +1993,18 @@ sub read_handler
               print_output("IGNORE", "USERCOLOR", $hexrgb, $name, $ihash, $id, $ignore,
                            $ignorehexrgb, $ignorename, $ignoreihash, $ignoreid);
               
-              if( ($option{antiignore} and $userdata->get_antiignore($id)) or $option{antiignoreall} )
-                { login(); }
+              login() if ($option{antiignore} and $userdata->get_antiignore($id)) or $option{antiignoreall};
               }
          elsif( $read[0] =~ /<RSET cmd="go" param="(.+)" id="(\d{1,3})" \/>/ )
               {
               my $hexrgb = $userdata->get_hex_rgb($2);
               print_output("RSET", "USERCOLOR", $hexrgb, SAITAMA);
               }
-         elsif( $read[0] =~ /^<SET cmd="ev"/ )
+         elsif( $read[0] =~ /^<SET cmd="play" id="(\d{1,3}) \/>/ ) {}
+         elsif( $read[0] =~ /^<SET cmd="ev".+?\/>/ )
               {
               ### <SET cmd="ev" id="\d{1,3}" />
+              ### <SET cmd="ev" pre="0" param="0" id=\d{1,3} />
               ### <SET cmd="ev" pre="0|1" param="0|1" id="\d{1,3}" />
               ### <SET cmd="ev" set="start|wait" param="start|wait" id="\id{1,3}" />
               #if( !$option{mute} and !$mute{$id} ) { print_output("NOTIFICATION", $read[0]) };
@@ -1708,11 +2122,8 @@ sub read_handler
 ### Stores command line arguments into $argument
 ###
 ### Takes:
-### - @ARGV
+### - array: @ARGV
 ### Returns:
-### - Nothing
-###
-### Issues:
 ### - Nothing
 ###
 sub get_argument
@@ -1746,6 +2157,14 @@ sub get_argument
               shift(@ARGV); $argument{g} = $ARGV[0];
               shift(@ARGV); $argument{b} = $ARGV[0];
               }
+         elsif( $ARGV[0] eq "-site" )
+              {
+              shift(@ARGV);
+              $argument{site} =
+                  $ARGV[0] == 1 ? "socksproxy" :
+                  $ARGV[0] == 2 ? "socksproxylist" :
+                  undef;
+              }
          elsif( $ARGV[0] eq "-room" )
               {
               shift(@ARGV);
@@ -1769,6 +2188,10 @@ sub get_argument
          }
     }
     
+
+#------------------------------------------------------------------------------------------------------------------#
+# SDL                                                                                                              #
+#------------------------------------------------------------------------------------------------------------------#
 
 ### Push an event into the SDL event queue
 sub push_event
@@ -1867,7 +2290,7 @@ sub event_handler
     elsif( $event->user_code() == 25 )
          {
          my $id        = $eventdata{id};
-         my $character = "character//" . $userdata->get_character($id) . ".png";
+         my $character = "lib//character//" . $userdata->get_character($id) . ".png"; ### Not tested
          my($x, $y)    = $userdata->get_x_y_scl($id);
          while( !$roomdata{$id} )
               {
@@ -1905,9 +2328,8 @@ sub event_handler
 
 ### Creates a SDL window, this function is only called to create a thread
 ###
-### %roomdata: Local variable used to store sprites in the current room
 sub sdl_window {
-    my %roomdata;
+    my %roomdata; ### Local variable used to store sprites in the current room
     my $window = SDLx::App->new(
         width  => 620,
         height => 320,
@@ -1919,11 +2341,18 @@ sub sdl_window {
 }
 
 
+#------------------------------------------------------------------------------------------------------------------#
+# Global variable declaration and config loading                                                                   #
+#------------------------------------------------------------------------------------------------------------------#
 
-#-------------------------------------------------------------------------------------------------------------------
+### SDL constants
+sub SDL_QUIT            { 12 }
+sub SDL_KEYDOWN         { 2 }
+sub SDL_MOUSEBUTTONDOWN { 6 }
+sub SDL_MOUSEBUTTONUP   { 9 }
+sub SDL_BUTTON_LEFT     { 1 }
 
-
-
+### Global shared variables
 share(%argument);          ### Command line arguments
 share(%option);            ### Options of things too small to own their own variables
 share(%socketdata);        ### The default ip and port address
@@ -1935,8 +2364,12 @@ share(@proxyaddr);         ### List of ip addresses retrieved by get_proxy_list(
 share(@proxyport);         ### List of ip ports retrieved by get_proxy_list()
 share(@inputline);         ### Previous comments
 share(@popuptrigger);      ### List of strings that trigger an allarm
-share($inputcounter);      ### Counter for @inputline, though there is no need for this to be shared
 
+### Global local variables
+$INPUTCOUNTER = 0;         ### Counter for @inputline
+$CONFIGMENU   = 0;         ### Config menu opened/closed
+
+### Get command line arguments
 get_argument();
 
 ### Get config file
@@ -1954,66 +2387,23 @@ for my $line (<CONFIG>)
      }
 close(CONFIG);
 
-### Create the main Win32::GUI window
-###
-### Issues:
-### - Scroll in $outputfield not working initially, starts working once it's scrolled manually once
-$window = Win32::GUI::Window->new(
-    -name   => "Window",
-    -title  => "Monachat",
-    -height => 320,
-    -width  => 620
-);
-if( $config{popup} ) {
-    $taskbaricon = Win32::GUI::Icon->new("GUIPERL.ICO");
-    $notifyicon  = $window->AddNotifyIcon(
-        -icon            => $taskbaricon,
-        -name            => "NotifyIcon",
-        -tip             => "Monachat",
-        -balloon         => 1,
-        -balloon_timeout => 4
-    );
-}
-$inputfield = $window->AddTextfield(
-    -name        => "Inputfield",
-    -height      => 30,
-    -width       => 598,
-    -left        => 2,
-    -top         => 240,
-    -multiline   => 0,
-    -autohscroll => 1
-);
-$outputfield = $window->AddRichEdit(
-    -name        => "Outputfield",
-    -height      => 220,
-    -width       => 598,
-    -left        => 2,
-    -top         => 10,
-    -multiline   => 1,
-    -readonly    => 1,
-    -vscroll     => 1,
-    #-class       => "RichEdit20A", ### Japanese characters appear too small
-    -autovscroll => 1
-);
+### Set display mode
+if   ( $config{displaymode} == 1 )
+     {
+     ($LOGINSPACE, $ROOMSPACE) =
+         $LANGUAGE eq "japanese" ?
+         (" " x 73, " " x 90) :
+         (" " x 82, " " x 87);
+     }
+elsif( $config{displaymode} == 2 )
+     {
+     ($LOGINSPACE, $ROOMSPACE) =
+         $LANGUAGE eq "japanese" ?
+         (" " x 53, " " x 63) :
+         (" " x 82, " " x 87);
+     }
 
-### Set gui options
-$inputfield->SetLimitText(50);                             ### Set inputfield limit to 50
-$inputfield->SetFocus();                                   ### Set focus on inputfield on startup
-$outputfield->SetCharFormat( -name => "MS Shell Dlg" );    ### Set font to MS Shell Dlg
-$outputfield->SetBkgndColor($config{backgroundcolor});     ### Set background color
-
-### Enable URL clicking
-$outputfield->SetTextMode(1, 1);
-$eventmask = $outputfield->GetEventMask();
-$outputfield->SetEventMask($eventmask | ENM_LINK);
-$outputfield->Hook(EN_LINK, \&Outputfield_URL);
-$outputfield->AutoURLDetect();
-
-$window->Center();
-$window->Show();
-
-
-### $logindata only stores initial login data
+### Initial login data
 $logindata = Userdata->new_login_data(
     $argument{name}      || $config{name},
     $argument{character} || $config{character},
@@ -2030,53 +2420,289 @@ $logindata = Userdata->new_login_data(
     $argument{attrib}    || $config{attrib}
 ) or die "Couldn't create logindata.\n";
 
-### $userdata stores all user data, including own
+### User data
 $userdata =  Userdata->new_user_data() or die "Couldn't create userdata.\n";
 
 %socketdata = (
     address => $argument{address} || $config{address} || "153.122.46.192",
     port    => $argument{port}    || $config{port}    || 9095
 );
+
 %proxy = (
     on      => $argument{proxy}      || $config{proxy}   || 0,
     timeout => $argument{timeout}    || $config{timeout} || 1,
     debug   => $argument{debug}      || $config{debug}   || 0,
     change  => $argument{change}     || $config{change}  || 0,
+    site    => $argument{site}       || $config{site}    || "socksproxy",
     skip    => $argument{skip}       || 0,
-    version => $config{socksversion} || 4
+    version => $config{socksversion} || 4,
 );
+
 %option = (
-    mute     => $config{mute}       || 0,
-    popup    => $config{popup}      || 0,
-    roominfo => $config{roominfo}   || 0,
-    savetrip => $argument{savetrip} || $config{savetrip} || "no",
-    readonly => 1,
-    debug    => 0
+    mute        => $config{mute}        || 0,
+    popup       => $config{popup}       || 0,
+    roominfo    => $config{roominfo}    || 0,
+    savetrip    => $argument{savetrip}  || $config{savetrip} || "no",
+    displaymode => $config{displaymode} || 1,
+    popupall    => 0,
+    evade       => 0,
+    room        => 0,
+    readonly    => 1,
+    debug       => 0
 );
   
-$proxy{on}        = $proxy{on}        eq "yes" ? 1 : 0; #
-$proxy{debug}     = $proxy{debug}     eq "yes" ? 1 : 0; #
-$option{savetrip} = $option{savetrip} eq "yes" ? 1 : 0; # 
+$proxy{on}        = $proxy{on}        eq "yes" ? 1 : 0; ###
+$proxy{debug}     = $proxy{debug}     eq "yes" ? 1 : 0; ###
+$option{savetrip} = $option{savetrip} eq "yes" ? 1 : 0; ###
 
-### $pingsemaphore:    Used to restart the ping thread
-### $eventsemaphore:   Used to prevent %eventdata being accessed before SDL event handler uses them
-### $writesocketqueue: Queues all the socket write requests
-### $tripqueue:        Queues all the trip store requests
-$pingsemaphore    = Thread::Semaphore->new();
-$eventsemaphore   = Thread::Semaphore->new();
-$writesocketqueue = Thread::Queue->new();
-$tripqueue        = Thread::Queue->new() if $option{savetrip};
+$pingsemaphore    = Thread::Semaphore->new();                   ### Used to restart ping thread
+$eventsemaphore   = Thread::Semaphore->new();                   ### Prevents %eventdata being accessed
+$writesocketqueue = Thread::Queue->new();                       ### Queues socket write requests
+$tripqueue        = Thread::Queue->new() if $option{savetrip};  ### Queues trip store requests
+
+
+#------------------------------------------------------------------------------------------------------------------#
+# Main window                                                                                                      #
+#------------------------------------------------------------------------------------------------------------------#
+
+### Issues:
+### - Scroll in $outputfield not working initially, starts working once it's scrolled manually once
+
+$window = Win32::GUI::Window->new(
+    -name   => "Window",
+    -title  => "Monachat",
+    -height => 320,
+    -width  => 617
+);
+
+if( $config{popup} ) {
+    $taskbaricon = Win32::GUI::Icon->new("GUIPERL.ICO");
+    $notifyicon  = $window->AddNotifyIcon(
+        -icon            => $taskbaricon,
+        -name            => "NotifyIcon",
+        -tip             => "Monachat",
+        -balloon         => 1,
+        -balloon_timeout => 4
+    );
+}
+
+$inputfield = $window->AddTextfield(
+    -name        => "Inputfield",
+    -height      => 30,
+    -width       => 560, #598
+    -left        => 2,
+    -top         => 240,
+    -multiline   => 0,
+    -autohscroll => 1
+);
+
+$outputfield = $window->AddRichEdit(
+    -name        => "Outputfield",
+    -height      => 220,
+    -width       => 598,
+    -left        => 2,
+    -top         => 10,
+    -multiline   => 1,
+    -readonly    => 1,
+    -vscroll     => 1,
+    -autovscroll => 1
+    #-class       => "RichEdit20A", ### Japanese characters appear too small
+);
+
+$configbutton = $window->AddButton(
+    -name   => "ConfigButton",
+    -text   => "C",
+    -width  => 30,
+    -height => 30,
+    -left   => 566,
+    -top    => 240
+);
+
+
+#------------------------------------------------------------------------------------------------------------------#
+# List view                                                                                                        #
+#------------------------------------------------------------------------------------------------------------------#
+
+$menulistview = $window->AddListView(
+    -name   => "MenuListView",
+    -width  => 160,
+    -height => 260,
+    -top    => 10,
+    -left   => 610
+);
+
+$menulistview->InsertColumn(
+    -index => 0,
+    -text  => "User menu",
+    -width => 150,
+);
+
+$optionlistview = $window->AddListView(
+    -name   => "OptionListView",
+    -width  => 160,
+    -height => 260,
+    -top    => 10,
+    -left   => 610
+);
+
+$optionlistview->InsertColumn(
+    -index => 0,
+    -text  => "Command",
+    -width => 150
+);
+
+$optionlistview->InsertItem( -text => "Change Profile" );   #0
+$optionlistview->InsertItem( -text => "Default" );          #1
+$optionlistview->InsertItem( -text => "Search" );           #2
+$optionlistview->InsertItem( -text => "Trigger on/off" );   #3
+$optionlistview->InsertItem( -text => "Debug on/off" );     #4
+$optionlistview->InsertItem( -text => "Roominfo on/off" );  #5
+$optionlistview->InsertItem( -text => "Change Language" );  #6
+$optionlistview->InsertItem( -text => "Background color" ); #7
+$optionlistview->InsertItem( -text => "Proxy on/off" );     #8
+$optionlistview->InsertItem( -text => "Proxy timeout" );    #9
+$optionlistview->InsertItem( -text => "Proxy skip" );       #10
+$optionlistview->InsertItem( -text => "End" );              #11
+$optionlistview->InsertItem( -text => "New" );              #12
+$optionlistview->InsertItem( -text => "Save log" );         #13
+$optionlistview->InsertItem( -text => "Relogin" );          #14
+$optionlistview->InsertItem( -text => "Disconnect" );       #15
+
+$usermenu = Win32::GUI::Menu->new(
+    "User menu"      => "UserMenu",
+    ">&Ignore"       => "UserMenuIgnore",
+    ">&Antiignore"   => "UserMenuAntiignore",
+    ">&Mute"         => "UserMenuMute",
+    ">&Mute comment" => "UserMenuMutecom",
+    ">&Get name"     => "UserMenuGetname",
+    ">&Get trip"     => "UserMenuGettrip",
+    ">&Stalk"        => "UserMenuStalk",
+    ">&Evade"    => "UserMenuEvade"
+);
+
+$profilemenu = Win32::GUI::Menu->new(
+    "Profile menu" => "ProfileMenu",
+    ">&Profile 1"    => "Profile1",
+    ">&Profile 2"    => "Profile2",
+    ">&Profile 3"    => "Profile3"
+);
+
+$searchmenu = Win32::GUI::Menu->new(
+    "Search menu" => "SearchMenu",
+    ">&Main"        => "SearchMain",
+    ">&All"         => "SearchAll",
+    ">&User"        => "SearchUser"
+);
+
+$languagemenu = Win32::GUI::Menu->new(
+    "Language Menu" => "LanguageMenu",
+    ">&English"       => "LanguageEnglish",
+    ">&Japanese"      => "LanguageJapanese"
+);
+
+$newmenu = Win32::GUI::Menu->new(
+    "New Menu" => "NewMenu",
+    ">&Main"     => "NewMain",
+    ">&Here"     => "NewHere"
+);
+
+$logindatalistview = $window->AddListView(
+    -name   => "LogindataListView",
+    -width  => 160,
+    -height => 260,
+    -top    => 10,
+    -left   => 610
+);
+
+$logindatalistview->InsertColumn(
+    -index => 0,
+    -text  => "Login data",
+    -width => 150
+);
+
+$logindatalistview->InsertItem( -text => "Name" );       #0
+$logindatalistview->InsertItem( -text => "Character" );  #1
+$logindatalistview->InsertItem( -text => "Stat" );       #2
+$logindatalistview->InsertItem( -text => "Trip" );       #3
+$logindatalistview->InsertItem( -text => "RGB" );        #4
+$logindatalistview->InsertItem( -text => "x" );          #5
+$logindatalistview->InsertItem( -text => "y" );          #6
+
+
+#------------------------------------------------------------------------------------------------------------------#
+# Dialog window                                                                                                    #
+#------------------------------------------------------------------------------------------------------------------#
+
+$dialog = Win32::GUI::Window->new(
+    -name     => "DialogWindow",
+    -height   => 160,
+    -width    => 290,
+    -dialogui => 1
+);
+
+$dialoginputfield = $dialog->AddTextfield(
+    -name   => "DialogTextField",
+    -width  => 160,
+    -height => 30,
+    -top    => 20,
+    -left   => 80
+);
+
+$dialogyes = $dialog->AddButton(
+    -name   => "DialogYes",
+    -text   => "Ok",
+    -width  => 40,
+    -height => 30,
+    -top    => 80,
+    -left   => 70
+);
+
+$dialogno = $dialog->AddButton(
+    -name   => "DialogNo",
+    -text   => "Exit",
+    -width  => 40,
+    -height => 30,
+    -top    => 80,
+    -left   => 160
+);
+
+
+#------------------------------------------------------------------------------------------------------------------#
+# GUI options                                                                                                      #
+#------------------------------------------------------------------------------------------------------------------#
+
+$inputfield->SetLimitText(50);                             ### Set inputfield limit to 50
+$inputfield->SetFocus();                                   ### Set focus on inputfield on startup
+$outputfield->SetCharFormat( -name => "MS Shell Dlg" );    ### Set font to MS Shell Dlg
+$outputfield->SetBkgndColor($config{backgroundcolor});     ### Set background color
+
+### Enable URL clicking
+$outputfield->SetTextMode(1, 1);
+$eventmask = $outputfield->GetEventMask();
+$outputfield->SetEventMask($eventmask | ENM_LINK);
+$outputfield->Hook(EN_LINK, \&Outputfield_URL);
+$outputfield->AutoURLDetect();
+
+$menulistview->Hide();      ###
+$optionlistview->Hide();    ###
+$logindatalistview->Hide(); ###
+$dialog->Center();
+
+
+#------------------------------------------------------------------------------------------------------------------#
+# Thread and main window initialization                                                                            #
+#------------------------------------------------------------------------------------------------------------------#
  
 if( $ENABLE_GRAPHIC_INTERFACE == 1 )
   {
-  $event = SDL::Event->new();
+  $event           = SDL::Event->new();
   $sdlwindowthread = threads->create(\&sdl_window);
   }
 
 threads->create(\&trip_store) if $option{savetrip};
 $pingthread        = threads->create(\&ping);
 $readsocketthread  = threads->create(\&read_socket);
+$window->Center();
+$window->Show();
 
-### Hooks WM_MOVE to Window_Move()
-$window->Hook(3, \&Window_Move);
 Win32::GUI->Dialog();
