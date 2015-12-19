@@ -163,7 +163,7 @@ sub ConfigButton_MouseDown
     
     foreach my $id (keys %roomid)
         {
-        $menulistview->InsertItem(-text => encode("cp932", $userdata->get_name($key)||"null")) if !$CONFIGMENU;
+        $menulistview->InsertItem(-text => encode("cp932", $userdata->get_name($id)||"null")) if !$CONFIGMENU;
         $roomid{$id} = $columnposition++;
         }
     
