@@ -1,7 +1,19 @@
+#-------------------------------------------------------------------------------------------------------------------#
+# Userdata.pm                                                                                                       #
+#                                                                                                                   #
+# Info: Userdata class, contains functions related to structuring and storing monachat user data and other useful   #
+#       functions                                                                                                   #
+#                                                                                                                   #
+# Issues:                                                                                                           #
+# - Can't change character when invisible                                                                           #
+#-------------------------------------------------------------------------------------------------------------------#
+
 package Userdata;
+use Encode qw(encode decode);
 use threads;
 use threads::shared qw(shared_clone);
 
+### Global variable declaration
 $ID_NAME         = '$id."name"';
 $ID_CHARACTER    = '$id."character"';
 $ID_STATUS       = '$id."status"';
@@ -15,9 +27,14 @@ $ID_X            = '$id."x"';
 $ID_Y            = '$id."y"';
 $ID_SCL          = '$id."scl"';
 $STALK_IHASH     = '"stalk".$self->get_ihash($id)';
-$ANTISTALK_IHASH = '"antistalk".$self->get_ihash($id)';
+$EVADE_IHASH = '"evade".$self->get_ihash($id)';
 $ID_IGNORE_IHASH = '$id."ignore".$ihash';
 $ID_ANTIIGNORE   = '$id."antiignore"';
+
+### Read configuration file
+open(CONFIG, "<", "config.txt");
+for my $line (<CONFIG>) { $config{$1} = $2 if $line =~ /^(.+?) = (.+)$/; }
+close(CONFIG);
 
 sub new_login_data {
     my $class = shift;
@@ -98,6 +115,10 @@ sub get_id
 sub set_trip
     {
     my($self, $trip, $id) = ($_[0], $_[1]||"", $_[2]||"");
+    return if $trip =~ /.{10}/;
+    
+    $trip = substr($trip, 1, -1) if $trip =~ /^#/;
+    $trip = pack("U*", hex("25C6")).$trip if $config{square};    
     $id =~ /^\d{1,3}$/ ? $self->{eval($ID_TRIP)} = $trip : $self->{trip} = $trip;
     }
 
@@ -110,6 +131,9 @@ sub get_trip
 sub set_ihash
     {
     my($self, $ihash, $id) = ($_[0], $_[1]||"", $_[2]||"");
+    return if $ihash =~ /.{10}/;
+    
+    $ihash = pack("U*", hex("25C7")).$ihash if $config{square};
     $self->{eval($ID_IHASH)} = $ihash if $id =~ /^\d{|,3}$/;
     }
 
@@ -196,15 +220,9 @@ sub get_rgb
       return($self->{r}, $self->{g}, $self->{b});
     }
 
-### Issues:
-### - Argument "100" nicms..." isn't numeric in pack at 207
-### - Character in 'c' format wrapped in pack at 205
 sub set_hex_rgb
     {
-    ### Why?
-    #no warnings;
     my($self, $r, $g, $b, $id) = ($_[0], $_[1]||0, $_[2]||0, $_[3]||0, $_[4]||"");
-    #print "rgb: $r $b $g.\n";
     return if $id !~ /^\d{1,3}$/;
     
     $r = $r =~ /^\d{1,3}$/ ? $r : 0;
@@ -299,16 +317,16 @@ sub get_stalk
     return $self->{eval($STALK_IHASH)} if $id =~ /^\d{1,3}$/;
     }
 
-sub set_antistalk
+sub set_evade
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    if( $id =~ /^\d{1,3}$/ ) { $self->{eval($ANTISTALK_IHASH)} = $self->{eval($ANTISTALK_IHASH)} ? 0 : 1; }
+    if( $id =~ /^\d{1,3}$/ ) { $self->{eval($EVADE_IHASH)} = $self->{eval($EVADE_IHASH)} ? 0 : 1; }
     }
 
-sub get_antistalk
+sub get_evade
     {
     my($self, $id) = ($_[0], $_[1]||"");
-    return $self->{eval($ANTISTALK_IHASH)} if $id =~ /^\d{|.3}$/;
+    return $self->{eval($EVADE_IHASH)} if $id =~ /^\d{|.3}$/;
     }
 
 sub set_ignore
@@ -343,10 +361,17 @@ sub set_data {
        $_[8]||0, $_[9]||0, $_[10]||"", $_[11]||"", $_[12]||"");
     
     return if $id !~ /^\d{1,3}$/;
+    
+    $ihash = substr($ihash, 4) if $config{tripdigit} == 6;
+    if( $config{square} ) {
+        $ihash = pack("U*", hex("25C7")).$ihash if $ihash;
+        $trip  = pack("U*", hex("25C6")).$trip  if $trip;
+    }
+    
     $self->{eval($ID_NAME)}      = $name;
     $self->{eval($ID_CHARACTER)} = $character;
     $self->{eval($ID_STATUS)}    = $status;
-    $self->{eval($ID_TRIP)}      = $trip;
+    $self->{eval($ID_TRIP)}      = $trip =~ /^#/ ? substr($trip, 1, -1) : $trip;
     $self->{eval($ID_IHASH)}     = $ihash;
     $self->{eval($ID_R)}         = $r;
     $self->{eval($ID_G)}         = $g;
@@ -392,17 +417,45 @@ sub get_data {
     }
 }
 
-sub get_data_by_ihash {
-    ### Use of uninitialized value in string eq at 479
-    no warnings;
+### Issues:
+###
+### - Use of uninitialized value at 425
+sub get_data_by_ihash
+    {
     my($self, $ihash) = ($_[0], $_[1]||"");
     return if $ihash !~ /^.{10}$/;
     
-    for my $id (1..300) {
-        if( $self->{eval($ID_IHASH)} eq $ihash )
+    for my $id (1..300)
+        {
+        if( $self->{eval($ID_IHASH)} and $self->{eval($ID_IHASH)} eq $ihash )
           { return($self->get_name($id), $id); }
+        }
     }
-}
+
+sub set_profile
+    {
+    my($self, $profile, $loginid) = @_;
+    return if $profile =~ /^\d+$/ or $loginid =~ /^\d{1,3}$/;
+    
+    $profile = "p".$profile;
+    my($pname, $pcharacter, $pstatus, $ptrip, $pr, $pg, $pb, $px, $py, $pscl) =
+      ($profile."name", $profile."character", $profile."status", $profile."trip",
+       $profile."r", $profile."g", $profile."b", $profile."x", $profile."y", $profile."scl");
+    $self->set_data(
+        decode("cp932", $config{$pname}),
+        decode("cp932", $loginid),
+        decode("cp932", $config{$pcharacter}),
+        decode("cp932", $config{$pstatus}),
+        decode("cp932", $config{$ptrip}),
+        decode("cp932", $self->get_ihash($loginid)),
+        decode("cp932", $config{$pr}),
+        decode("cp932", $config{$pg}),
+        decode("cp932", $config{$pb}),
+        decode("cp932", $config{$px}),
+        decode("cp932", $config{$py}),
+        decode("cp932", $config{$pscl})
+    );
+    }
 
 sub copy {
     my($self, $id, $loginid) = ($_[0], $_[1]||"", $_[2]||"");
