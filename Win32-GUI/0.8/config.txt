@@ -42,6 +42,7 @@ p2room1 = MONA8094
 p2room2 = main
 [GRAPHIC OPTIONS]
 graphicinterface = 0
+displaymode = 1
 [COLOR OPTIONS]
 backgroundcolor = #AAAAAA
 [LOG OPTIONS]
@@ -55,8 +56,11 @@ timeout = 0.4
 debug = 1
 change = 0
 socksversion = 4
+site: socksproxy
 [POPUP OPTIONS]
 language = japanese
+tripdigit = 6
+square = 1
 savetrip = yes
 savelog = no
 popup = 1
