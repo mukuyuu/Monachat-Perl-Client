@@ -1,3 +1,14 @@
+#-------------------------------------------------------------------------------------------------------------------#
+# Language.pm                                                                                                       #
+#                                                                                                                   #
+# Info: Language functions for MPC, variables are derreferenced from that of the main client and returned depending #
+#       on the selected language                                                                                    #
+#                                                                                                                   #
+# TODO:                                                                                                             #
+#                                                                                                                   #
+# - Sort alphabetically                                                                                             #
+#-------------------------------------------------------------------------------------------------------------------#
+
 package Language;
 use Exporter;
 use utf8;
@@ -34,19 +45,39 @@ sub STALK_ID {
     $$LANGUAGE eq "japanese" ? "ストーク ID: $1。\n" :
     undef;
 }
-sub ANTISTALK_ON {
-    $$LANGUAGE eq "english"  ? "Antistalk $1\n" :
-    $$LANGUAGE eq "japanese" ? "アンチストーク $1。\n" :
+sub EVADE_ON {
+    $$LANGUAGE eq "english"  ? "Evade $1\n" :
+    $$LANGUAGE eq "japanese" ? "避けモード $1。\n" :
     undef;
 }
-sub ANTISTALK_ID {
-    $$LANGUAGE eq "english"  ? "Antistalk id $1\n" :
-    $$LANGUAGE eq "japanese" ? "アンチストーク ID $1。\n" :
+sub EVADE_ID {
+    $$LANGUAGE eq "english"  ? "Evade id $1\n" :
+    $$LANGUAGE eq "japanese" ? "避けモード ID $1。\n" :
     undef;
 }
 sub PROXY_ON {
     $$LANGUAGE eq "english"  ? "Proxy $1\n" :
     $$LANGUAGE eq "japanese" ? "プロクシー $1。\n" :
+    undef;
+}
+sub PROXY_SKIP {
+    $$LANGUAGE eq "english"  ? "Skip set to $1.\n" :
+    $$LANGUAGE eq "japanese" ? "スキップを$1に変更しました。\n" :
+    undef;
+}
+sub PROXY_TIMEOUT {
+    $$LANGUAGE eq "english"  ? "Timeout set to $1.\n" :
+    $$LANGUAGE eq "japanese" ? "タイムアウトを$1に変更しました。\n" :
+    undef;
+}
+sub PROXY_SITE {
+    $$LANGUAGE eq "english"  ? "Site set to $1.\n" :
+    $$LANGUAGE eq "japanese" ? "サイトを$1に変更しました。\n" :
+    undef;
+}
+sub PROXY_CHANGE {
+    $$LANGUAGE eq "english"  ? "Change set to $1.\n" :
+    $$LANGUAGE eq "japanese" ? "プロクシーのダウンロードサイトを$1に変更しました。\n" :
     undef;
 }
 sub ANTIIGNORE_ON {
@@ -159,18 +190,18 @@ sub TRIP_NOT_ENABLED {
     undef;
 }
 sub DISCONNECT {
-    $$LANGUAGE eq "english"  ? "Disconnected from server.\n" :
-    $$LANGUAGE eq "japanese" ? "サーバーから切断した。\n" :
+    $$LANGUAGE eq "english"  ? "Disconnected from server (".UPTIME().")\n" :
+    $$LANGUAGE eq "japanese" ? "サーバーから切断した (".UPTIME().")\n" :
     undef;
 }
 sub RELOGIN {
-    $$LANGUAGE eq "english"  ? "Disconnected from server, trying to relogin...\n" :
-    $$LANGUAGE eq "japanese" ? "サーバーから切断した、ログイン中・・・\n" :
+    $$LANGUAGE eq "english"  ? "Disconnected from server, trying to relogin... (".UPTIME().")\n" :
+    $$LANGUAGE eq "japanese" ? "サーバーから切断した、ログイン中・・・ (".UPTIME().")\n" :
     undef;
 }
 sub UPTIME {
-    $$LANGUAGE eq "english"  ? "Uptime $$minute m $$second s.\n" :
-    $$LANGUAGE eq "japanese" ? "アップタイム: ".$$minute."分".$$second."秒。\n" :
+    $$LANGUAGE eq "english"  ? "Uptime: $$minute"."m $$second"."s" :
+    $$LANGUAGE eq "japanese" ? "アップタイム: ".$$minute."分".$$second."秒" :
     undef;
 }
 sub ROOM {
