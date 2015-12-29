@@ -51,7 +51,7 @@ mute = 0
 [SOCKET OPTIONS]
 address = 153.122.46.192
 port = 9095
-proxy = yes<
+proxy = yes
 timeout = 0.4
 debug = yes
 change = 0
