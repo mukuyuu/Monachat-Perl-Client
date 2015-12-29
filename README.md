@@ -128,7 +128,7 @@ Monachat Perl Clientを出る。
 \[PROFILE N]:<br>
 [LOGIN DATA]と同じだが、パラメターの前にp1, p2, p3...がついている、いくつでも作成出来る。<br><br>
 \[GRAPHIC OPTIONS]:<br>
-graphicinterface = (0|1) : グラフィックインターフをオン、オフにする、この機能を使用するにはＳＤＬをインストールする必要がある。
+graphicinterface = (0|1) : グラフィックインターフをオン、オフにする、この機能を使用するにはＳＤＬをインストールする必要がある。<br><br>
 \[COLOR OPTIONS]:<br>
 backgroundcolor = #RRGGBB: バックグランドの色を設定。<br><br>
 [LOG OPTIONS]<br>
