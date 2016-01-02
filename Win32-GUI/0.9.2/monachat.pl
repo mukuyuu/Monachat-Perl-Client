@@ -90,7 +90,6 @@ close(CONFIG);
 use lib "lib";
 use Userdata;
 use Language;
-use EroHon;
 
 ### Load SDL modules
 if( $ENABLE_GRAPHIC_INTERFACE )
@@ -1172,21 +1171,6 @@ sub command_handler
          {
          return if $1 !~ /#\d{6}/;
          $outputfield->SetBkgndColor($1);
-         }
-    elsif( $command =~ /erohon (.+)/ )
-         {
-         return if !-e "lib/erohon.pm";
-         
-         my($search, $request, $rate, $page, $english, $address, $totalresult) = ($1, "", 2, 0, 0, "", "");
-         $rate    = $search =~ /-rate (\d)/    ? $1 : $rate;
-         $page    = $search =~ /-page (\d)/    ? $1 : $page;
-         $english = $search =~ /-english/      ? 1  : $english;
-         $request = $search =~ /(.+?) (-rate|-page|-english)/ ? $1 : $search;
-           
-         ($address, $totalresult) = EroHon::get_ehentai_random($request, $rate, $page, $english);
-         $totalresult = "nothing" if !$totalresult;
-         print_output("NOTIFICATION", "request: $request, found: $totalresult.\n");
-         $writesocketqueue->enqueue("COMMENT", $address) if $address;
          }
     elsif( $command =~ /\/getname (.+)/ )
          { get_name($1); }
