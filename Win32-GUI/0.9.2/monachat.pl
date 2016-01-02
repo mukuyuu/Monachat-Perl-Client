@@ -1898,6 +1898,7 @@ sub get_name
             next if $line !~ /^\Q$trip\E/;
                 
             my($name, undef) = $userdata->get_data_by_ihash($trip);
+            $name = encode("utf8", $name); ###
             $line =~ s/^(.{10})/$name ($1)/;
             $line = decode("utf8", $line); ###
             print_output("SEARCH", "$line\n");
