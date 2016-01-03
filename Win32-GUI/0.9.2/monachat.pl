@@ -271,7 +271,7 @@ sub refresh_listview_users
     foreach my $id (keys %roomid)
         {
         my $name     = $userdata->get_name($id)||"null";
-        my $ihash    = $userdata->get_ihash($id);
+        my $ihash    = $userdata->get_ihash($id)||"no ihash";
         my $userdata = $config{showtrip} ? "$name $ihash." : $name;
         $userdata = encode("cp932", $userdata);
         $menulistview->InsertItem(-text => $userdata) if !$CONFIGMENU;
@@ -1265,7 +1265,8 @@ sub print_list
 ### Returns:
 ### - Nothing
 ###
-sub print_output {
+sub print_output
+    {
     my($option, $usercolor) = (shift, "");
     my $line =
         $option{displaymode} == 1 ? "-" x 191 :
@@ -1276,12 +1277,14 @@ sub print_output {
     if( $_[0] eq "USERCOLOR" )
       {
       shift;
-      $usercolor = shift;
+      $usercolor = shift||"#000000";
       $usercolor = "#000000" if $usercolor eq "#FFFFFF" or $usercolor eq "#646464";
       }
     
     if( $option eq "USERDATA" )
       {
+      ### Issues: not printing in main
+      return if $logindata->get_room2() eq "main";
       my($name, $trip, $ihash, $id, $status, $character, $x, $scl, $option) = @_;
       
       print_list("#000000", "--> ") if $option =~ ENTER and $id != $logindata->get_id();
@@ -1330,6 +1333,7 @@ sub print_output {
          }
     elsif( $option eq "LOGIN" )
          {
+         return if $logindata->get_room2() eq "main";
          my $text = shift;
          chomp($text);
          
@@ -1352,6 +1356,7 @@ sub print_output {
          }
     elsif( $option eq "EXIT" )
          {
+         return if $logindata->get_room2() eq "main"; ###
          my $text = shift;
          return if $text eq "\n"; # ?
          
@@ -1371,11 +1376,18 @@ sub print_output {
              "#FFFF00", "$line\n"
            );
          }
+    elsif( $option eq "ENTER" )
+         {
+         return if $logindata->get_room2() eq "main"; ###
+         my $text = shift;
+         my $color = $usercolor||"#000000"; ###
+         print_list($color, $text);
+         }
     else {
          my $text  = shift;
          my $color =
              $option eq "NOTIFICATION" ? "#0000FF" :
-             $option eq "ENTER"        ? $usercolor||"#000000" :
+             #$option eq "ENTER"        ? $usercolor||"#000000" :
              $option eq "CHANGE"       ? $usercolor||"#000000" :
              $option eq "RSET"         ? $usercolor||"#000000" :
              $option eq "ERROR"        ? "#FF0000" : "#000000";
@@ -1486,7 +1498,7 @@ sub enter_room
     push_event(26, "all") if $ENABLE_GRAPHIC_INTERFACE;
     
     ### Send data
-    print $remote qq{<EXIT no="$id" \/>\0} if $option eq "REENTER";
+    print $remote encode("utf8", qq{<EXIT no="$id" \/>\0}) if $option eq "REENTER";
     if   ( $logindata->get_room2() eq "main" )
          { $enter = qq{<ENTER room="$room" name="$name" attrib="$attrib" />\0}; }
     else {
@@ -1746,9 +1758,9 @@ sub save_log
 sub refresh_main
     {
     my($mainscreen, $roomcounter) = ("\n\t", 0);
-    my $room2 = $logindata->get_room2();
+    my $room2 = $logindata->get_room2()||"";
 
-    if( $room2 == 0 or $room2 eq "main")
+    if( !$room2 or $room2 eq "main")
       {
       $outputfield->Select("0", "-1");
       $outputfield->ReplaceSel("");
@@ -2026,9 +2038,9 @@ sub print_data
     ($name, $character, $status, $trip, $ihash, $r, $g, $b, $x, $y, $scl) = $userdata->get_data($id);# while !$name;
     
     ### Format data
-    $scl       = $scl       eq "100"   ? RIGHT : LEFT;
-    $trip      = $trip      eq  ""     ? " "   : " $trip ";
-    $enteruser = $enteruser eq "ENTER" ? ENTER : "\n";
+    $scl       = $scl           eq '-100'    ? LEFT  : RIGHT; ### Not allowing null scl
+    $trip      = $trip && $trip eq  ""     ? " "   : " $trip ";
+    $enteruser = $enteruser     eq "ENTER" ? ENTER : "\n";
     
     ### Print end line
     if( $option{room} )
@@ -2056,7 +2068,7 @@ sub print_data
     refresh_listview_users()           if !$CONFIGMENU;
     $name  = "null"                    if !$name;
     $ihash = substr($ihash, 1)         if $config{square};
-    $tripqueue->enqueue($ihash, $name);
+    $tripqueue->enqueue($ihash, $name) if $room ne "main";
     $userdata->set_stalk($id)          if $option{stalk} and $userdata->get_stalk($userdata->get_ihash($id));
     $userdata->set_evade($id)          if $option{evade} and $userdata->get_evade($userdata->get_ihash($id));
     }
@@ -2206,7 +2218,8 @@ sub read_handler
               $REFRESHMAIN = 1;
               
               ### Format main window title
-              my $title = TITLE_ROOM." @ ".$userdata->get_name($logindata->get_id());
+              my $name = $userdata->get_name($logindata->get_id())||"";
+              my $title = TITLE_ROOM." @ $name";
               $title    = encode("cp932", $title);
               $window->Text($title);
               
