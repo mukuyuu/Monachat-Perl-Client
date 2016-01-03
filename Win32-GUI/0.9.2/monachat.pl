@@ -39,10 +39,13 @@ use POSIX qw(LC_COLLATE);
 ### - Would be better to have more proxy sites, socksproxylist have a lot of proxies but don't know how
 ###   reliable it is
 ### - Add limits to comment cache so that it goes up or down only when there is a comment stored (better?)
-### - Wide character with search sometimes ? (30/12)
+### - Wide character with search sometimes ? (30/12) at 1500 (enter_room) (03/01/16)
 ### - Maybe trip file is not created correctly the first time (FIXED?)
 ### - Add trip user search (DONE?)
 ### - Write /getignore
+### - Corruption when relogging and wide character warnings when searching
+### - Trip file corruption
+### - Getname corruption (fault of a corrupted trip file?)
 
 #-------------------------------------------------------------------------------------------------------------------#
 
@@ -90,6 +93,7 @@ close(CONFIG);
 use lib "lib";
 use Userdata;
 use Language;
+use EroHon;
 
 ### Load SDL modules
 if( $ENABLE_GRAPHIC_INTERFACE )
@@ -1172,6 +1176,21 @@ sub command_handler
          return if $1 !~ /#\d{6}/;
          $outputfield->SetBkgndColor($1);
          }
+    elsif( $command =~ /erohon (.+)/ )
+         {
+         return if !-e "lib/erohon.pm";
+         
+         my($search, $request, $rate, $page, $english, $address, $totalresult) = ($1, "", 2, 0, 0, "", "");
+         $rate    = $search =~ /-rate (\d)/    ? $1 : $rate;
+         $page    = $search =~ /-page (\d)/    ? $1 : $page;
+         $english = $search =~ /-english/      ? 1  : $english;
+         $request = $search =~ /(.+?) (-rate|-page|-english)/ ? $1 : $search;
+           
+         ($address, $totalresult) = EroHon::get_ehentai_random($request, $rate, $page, $english);
+         $totalresult = "nothing" if !$totalresult;
+         print_output("NOTIFICATION", "request: $request, found: $totalresult.\n");
+         $writesocketqueue->enqueue("COMMENT", $address) if $address;
+         }
     elsif( $command =~ /\/getname (.+)/ )
          { get_name($1); }
     elsif( $command =~ /\/gettrip (.+)/ )
@@ -1457,18 +1476,6 @@ sub enter_room
     
     $trip = $logindata->get_trip();
     
-    #$name = encode("utf8", $name);
-    #$character = encode("utf8", $character);
-    #$status = encode("utf8", $status);
-    #$ihash = encode("utf8", $ihash);
-    #$r = encode("utf8", $r);
-    #$g = encode("utf8", $g);
-    #$b = encode("utf8", $b);
-    #$x = encode("utf8", $x);
-    #$y = encode("utf8", $y);
-    #$scl = encode("utf8", $scl);
-    #$trip = encode("utf8", $trip);
-    
     ### Set $option{room} to true so that a line is drawn in the screen
     $option{room} = 1;
     
@@ -1481,15 +1488,15 @@ sub enter_room
     ### Send data
     print $remote qq{<EXIT no="$id" \/>\0} if $option eq "REENTER";
     if   ( $logindata->get_room2() eq "main" )
-         { print $remote qq{<ENTER room="$room" name="$name" attrib="$attrib" />\0}; }
+         { $enter = qq{<ENTER room="$room" name="$name" attrib="$attrib" />\0}; }
     else {
-         #no warnings;
-         $name = encode("utf8", $name);
          $enter  = qq{<ENTER room="$room" umax="0" type="$character" name="$name" };
          $enter .= qq{trip="$trip" } if $trip ne "";
          $enter .= qq{x="$x" y="$y" r="$r" g="$g" b="$b" scl="$scl" stat="$status" />\0};
-         print $remote $enter;
          }
+    
+    $enter = encode("utf8", $enter);
+    print $remote $enter;
     }
 
 sub get_server
@@ -1897,10 +1904,9 @@ sub get_name
             {
             next if $line !~ /^\Q$trip\E/;
                 
+            $line = decode("utf8", $line);
             my($name, undef) = $userdata->get_data_by_ihash($trip);
-            $name = encode("utf8", $name); ###
             $line =~ s/^(.{10})/$name ($1)/;
-            $line = decode("utf8", $line); ###
             print_output("SEARCH", "$line\n");
                 
             $match = 1;
@@ -2067,7 +2073,12 @@ sub write_handler
     my $write = shift;
     
     if   ( $write eq "REENTER"  ) { enter_room("REENTER"); }
-    elsif( $write eq "STAT"     ) { print $remote qq{<SET stat="}.$writesocketqueue->dequeue().qq{" />\0}; }
+    elsif( $write eq "STAT"     )
+         {
+         ### Wide character in print at 2085
+         no warnings;
+         print $remote qq{<SET stat="}.$writesocketqueue->dequeue().qq{" />\0};
+         }
     elsif( $write eq "SETXYSCL" ) { send_x_y_scl($writesocketqueue->dequeue()); }
     elsif( $write eq "SEARCH"   ) { search($writesocketqueue->dequeue()); }
     elsif( $write eq "SHUTUP"   ) { for (1..9) { print $remote qq{<RSET cmd="go" param="$_" />\0}; } }
