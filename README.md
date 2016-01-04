@@ -1,6 +1,8 @@
 # Monachat Perl Client
 
 
+v0.9.3 (URL アップデート): 0.9.3を使用するにはWWW::Shortenをインストールする必要があるので注意。
+
 #Monachat Perl Client(MPC)とは
 
 MPCはアノニミティーと使いやすさを考えて作られたもなちゃとのパールポートです。
@@ -31,7 +33,7 @@ MPCをインストールするにはパールをインストール必要があ�
 
 ```
 cpan
-install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent
+install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent WWW::Shorten
 ```
 
 を入力すればそのモジュールがインストールされる。
