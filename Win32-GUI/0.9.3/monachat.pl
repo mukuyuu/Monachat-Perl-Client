@@ -1083,7 +1083,7 @@ sub command_handler
              $1 eq "off" ? 0 : $proxy{change};
          print_output("NOTIFICATION", PROXY_CHANGE);
          }
-    elsif( $command eq "/url" )
+    elsif( $command eq "/openurl" )
          {
          if( !$option{url} )
            {
