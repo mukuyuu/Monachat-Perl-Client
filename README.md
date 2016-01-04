@@ -1,7 +1,6 @@
 
 # v0.9.3を使用するにはWWW::Shortenをインストールする必要があるので注意。
 
-# Monachat Perl Client
 
 #Monachat Perl Client(MPC)とは
 
