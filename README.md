@@ -32,7 +32,7 @@ MPCをインストールするにはパールをインストール必要があ�
 
 ```
 cpan
-install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent WWW::Shorten
+install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent Win32::Clipboard WWW::Shorten
 ```
 
 を入力すればそのモジュールがインストールされる。
