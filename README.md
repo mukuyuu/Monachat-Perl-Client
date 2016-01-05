@@ -1,5 +1,5 @@
 
-# v0.9.3を使用するにはWWW::Shortenをインストールする必要があるので注意。
+# v0.9.3を使用するにはWWW::ShortenとWin32::Clipboardをインストールする必要があるので注意。
 
 
 #Monachat Perl Client(MPC)とは
