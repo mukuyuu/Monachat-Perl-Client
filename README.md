@@ -1,7 +1,3 @@
-
-# v0.9.3を使用するにはWWW::ShortenとWin32::ClipboardとJSON::Parseをインストールする必要があるので注意。
-
-
 #Monachat Perl Client(MPC)とは
 
 MPCはアノニミティーと使いやすさを考えて作られたもなちゃとのパールポートです。
@@ -32,7 +28,7 @@ MPCをインストールするにはパールをインストール必要があ�
 
 ```
 cpan
-install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent Win32::Clipboard WWW::Shorten JSON::Parse
+install Encode Win32::GUI IO::Socket::Socks LWP::UserAgent Win32::Clipboard WWW::Shorten JSON JSON::Parse
 ```
 
 を入力すればそのモジュールがインストールされる。
