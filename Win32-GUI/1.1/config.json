@@ -80,5 +80,5 @@
 "savetrip"        : "yes",
 "savelog"         : 0,
 "popup"           : 1,
-"trigger"         : "名無しさん : 名無し"
+"trigger"         : ["名無しさん", "名無し"]
 }
