@@ -887,11 +887,11 @@ sub command_handler
     my    $loginid = $logindata->get_id();
     if   ( $command eq "/login" )
          { $readsocketthread->kill("STOP"); }
-    #elsif( $command =~ /^\/relogin\s*(.*)/ )
-    #     {
-    #     $proxy{skip} = $1 if $1 =~ /skip (\d+)/;
-    #     $readsocketthread->kill("STOP");
-    #     }
+    elsif( $command =~ /^\/relogin\s*(.*)/ )
+         {
+         $proxy{skip} = $1 if $1 =~ /skip (\d+)/;
+         $readsocketthread->kill("STOP");
+         }
     elsif( $command eq "/reenter" )
          { $writesocketqueue->enqueue("REENTER"); }
     elsif( $command eq "/disconnect" )
@@ -1437,15 +1437,48 @@ sub command_handler
          $tripqueue->enqueue($trip, $name);
          }
     elsif( $command eq "/getroom" )
-         { foreach my $id (keys %roomid) { print_data("USER", $id); } }
+         {
+         foreach my $id (keys %roomid)
+            {
+            print_data("USER", $id);
+            }
+         }
     elsif( $command eq "/getignore" )
          {
          ### TODO
          ...
          }
     elsif( $command =~ /\/save\s*(.*)/  )
-         { save_log($1); }
-    elsif( $command eq "/exit" ) { exit(); }
+         {
+         save_log($1);
+         }
+    elsif( $command eq "/restart" )
+         {
+         my $proxy = $proxy{on} ? "yes" : "no";
+         system("start monachat.pl -proxy $proxy -room ".$logindata->get_room2());
+         exit();
+         }
+    elsif( $command eq "/exit" )
+         {
+         if( $config{client_savelog} )
+           {
+           my($second, $minute, $hour, $day, $month, $year) = localtime(time());
+           system("mkdir LOG") if !-e "/LOG";
+         
+           ### Fix month and year format
+           $month++;
+           $year += 1900;
+           local $filename = "[$day-$month-$year].txt";
+         
+           ### Save log
+           open(CHATLOG, ">>", "LOG/$filename") or print_output("ERROR", SAVELOG_ERROR);
+           print CHATLOG "--- [$second:$minute:$hour] ---\n";
+           print CHATLOG $outputfield->Text();
+           close(CHATLOG);
+           }
+         
+         exit();
+         }
     else { print_output("ERROR", NO_COMMAND); }
     }
 
@@ -1694,12 +1727,16 @@ sub login
            ) or warn "$SOCKS_ERROR\n" and shift(@proxyaddr) and shift(@proxyport) and redo;
 
            ### Redo if skip is higher than 0 or change is on
-           if( $proxy{skip} or ($proxy{change} and $proxy{previousaddr} and $proxy{previousaddr} == $proxyaddr[0]))
+           if( $proxy{skip} or $proxy{change} )
              {
              shift(@proxyaddr);
              shift(@proxyport);
-             $proxy{skip}--;
-             next;
+             
+             if( $proxy{skip} )
+               {
+               $proxy{skip}--;
+               next;
+               }
              }
           
            $proxy{previousaddr} = $proxyaddr[0];
@@ -1896,11 +1933,21 @@ sub search
     ### Moves to main room
     my $currentroom = $logindata->get_room2();
     $logindata->set_room2("main");
-    enter_room("REENTER");
-    sleep(2); ### With proxy, it's probably different without proxy
+    #sleep(2);
     
     ### Gets a list of rooms with users
-    sysread($remote, $read, 20000) if $select->can_read();
+    print "main.\n";
+    sysread($remote, $read, 20000) if $select->can_read(2);
+    
+    for(1...2)
+       {
+       $logindata->set_room2(99);
+       enter_room("REENTER");
+       $logindata->set_room2("main");
+       enter_room("REENTER");
+       sleep(3); ### With proxy, it's probably different without proxy
+       sysread($remote, $read, 20000) if $select->can_read();
+       }
     $read = decode("utf8", $read);
     while( $read =~ /<ROOM c="(.+?)" n="(.+?)" \/>/g )
          {
@@ -2174,7 +2221,7 @@ sub get_name
     my @triplist;
          
     ### Push trips into an array
-    if   ( $search =~ /^(.{10})$/ )   { $trip = $1; }
+    if   ( $search =~ /^(.{6, 10})$/ )   { $trip = $1; }
     elsif( $search =~ /^(\d{1,4})$/ ) { $trip = $userdata->get_ihash($1); }
     else { return; }
     
@@ -2189,6 +2236,7 @@ sub get_name
     my $tripjsonref = json_file_to_perl("trip.json") or die "trip.json doesn't exist.\n";
     my %tripjson = %$tripjsonref;
     
+    $trip = substr($trip, 6, 0) if $config{client_tripdigit} == 6 and length($trip) == 10;
     my @namelist = @{$tripjson{$trip}};
     if(!@namelist)
       {
@@ -2225,7 +2273,8 @@ sub get_trip
     ### Search for name in trip.txt
     SEARCHTRIP: foreach my $trip (keys %{$tripjson})
         {
-        my $match;
+        my $trip = substr($trip, 6, 0) if $config{client_tripdigit} == 6 and length($trip) > 6;
+        print "trip: $trip.\n";
         SEARCHNAME: foreach my $name (@{$tripjson->{$trip}})
             {
             if ($name eq $searchname)
