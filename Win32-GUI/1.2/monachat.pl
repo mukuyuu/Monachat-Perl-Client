@@ -2700,7 +2700,7 @@ sub read_handler
               push_event(26, $id)      if $ENABLE_GRAPHIC_INTERFACE;
               refresh_listview_users() if !$CONFIGMENU;
               }
-         elsif( $read[0] =~ /<COM cmt="(.+?)".+?id="(.+?)".+?\/>/ ) ### There are three comment patterns
+         elsif( $read[0] =~ /<COM.+?cmt="(.+?)".+?id="(.+?)".+?\/>/ ) ### There are three comment patterns
               {
               #<COM cmt"(.+?)" id="(.+?)" cnt="(.+?)" \/>
               #<COM cmt="(.+?)" cnt="(.+?)" id="(.+?)" \/>
